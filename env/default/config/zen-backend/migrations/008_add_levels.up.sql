@@ -1,0 +1,2 @@
+ALTER TABLE groups ADD COLUMN level_catalog TEXT NOT NULL DEFAULT '[]';
+ALTER TABLE cards  ADD COLUMN level REAL;

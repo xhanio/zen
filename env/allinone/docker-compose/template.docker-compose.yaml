@@ -1,0 +1,9 @@
+services:
+  zen:
+    image: [[ GetImageNameWithTag "zen-allinone" "latest" ]]
+    container_name: zen
+    restart: unless-stopped
+    volumes:
+      - ./data:/data
+    ports:
+      - "38000:80"

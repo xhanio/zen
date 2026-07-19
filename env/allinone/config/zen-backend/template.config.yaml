@@ -1,0 +1,31 @@
+log:
+  level: 0
+  file: /var/log/zen-backend/app.log
+  rotation:
+    max_size: 100
+    max_backups: 3
+    max_age: 7
+
+db:
+  type: sqlite
+  source:
+    dbname: /data/zen.db
+  migration:
+    dir: /etc/[[ .Name ]]/migrations
+  connection:
+    max_open: 1
+    max_idle: 1
+    max_lifetime: 1h
+    exec_timeout: 30s
+
+api:
+  http:
+    host: 127.0.0.1
+    port: 8080
+    prefix: /api/v1
+    throttle:
+      rps: 100.0
+      burst_size: 200
+
+pprof:
+  port: 6060

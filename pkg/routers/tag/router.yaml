@@ -1,0 +1,12 @@
+server: http
+prefix: /groups
+handlers:
+  - method: GET
+    path: /:id/tags
+    func: ListTags
+  - method: PUT
+    path: /:id/tags/:name
+    func: RenameTag
+  - method: DELETE
+    path: /:id/tags/:name
+    func: DeleteTag

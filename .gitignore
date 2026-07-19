@@ -1,0 +1,40 @@
+# Binaries
+bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Build output
+dist/
+release/
+*.env
+
+# Local SQLite files
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+
+# Frontend
+/node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+.superpowers/
+/release.tar.gz
+
+# Local agent config and working notes
+.claude/
+docs/

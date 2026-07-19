@@ -1,0 +1,9 @@
+server: http
+prefix: /trash
+handlers:
+  - method: GET
+    path: /
+    func: ListTrash
+  - method: DELETE
+    path: /
+    func: EmptyTrash

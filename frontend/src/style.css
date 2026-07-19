@@ -1,0 +1,97 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --surface: #f8fafc;
+  --nav: #f1f5f9;
+  --muted: #e2e8f0;
+  --paper: #ffffff;
+  --paper-fg: #0f172a;
+  --fg: #1e293b;
+  --muted-fg: #475569;
+  --border: #e2e8f0;
+  --accent-bg: #dbeafe;
+  --accent-fg: #1d4ed8;
+  --accent-border: #93c5fd;
+  --destructive-bg: #fee2e2;
+  --destructive-fg: #b91c1c;
+  --destructive-border: #fca5a5;
+  --active-bg: #e0e7ff;
+  --active-fg: #1e40af;
+
+  /* Per-level "ladder" tokens. Warm (rose) → cool (sky/violet) rotation.
+     Each level: bg (light tint) / fg (mid-strong solid, used as the bar
+     color) / border (subtle border). TBD is the neutral fallback for
+     level=null cards. Levels 0..4 pin the current 4-tier design catalog
+     (Principle/Pattern/Decision/Detail) plus one extra. Beyond 4, callers
+     fall back to level 4. */
+  --l-tbd-bg: #f1f5f9;
+  --l-tbd-fg: #64748b;
+  --l-tbd-border: #cbd5e1;
+  --l-0-bg: #ffe4e6;
+  --l-0-fg: #be123c;
+  --l-0-border: #fda4af;
+  --l-1-bg: #fef3c7;
+  --l-1-fg: #d97706;
+  --l-1-border: #fcd34d;
+  --l-2-bg: #d1fae5;
+  --l-2-fg: #059669;
+  --l-2-border: #6ee7b7;
+  --l-3-bg: #e0f2fe;
+  --l-3-fg: #0369a1;
+  --l-3-border: #7dd3fc;
+  --l-4-bg: #ede9fe;
+  --l-4-fg: #7c3aed;
+  --l-4-border: #c4b5fd;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --surface: #0f172a;
+    --nav: #1e293b;
+    --muted: #334155;
+    /* --paper and --paper-fg stay */
+    --fg: #e2e8f0;
+    --muted-fg: #94a3b8;
+    --border: #334155;
+    --accent-bg: #1e3a8a;
+    --accent-fg: #bfdbfe;
+    --accent-border: #3b82f6;
+    --destructive-bg: #7f1d1d;
+    --destructive-fg: #fecaca;
+    --destructive-border: #ef4444;
+    --active-bg: #1e3a8a;
+    --active-fg: #bfdbfe;
+
+    --l-tbd-bg: #334155;
+    --l-tbd-fg: #94a3b8;
+    --l-tbd-border: #475569;
+    --l-0-bg: #4c0519;
+    --l-0-fg: #fda4af;
+    --l-0-border: #9f1239;
+    --l-1-bg: #451a03;
+    --l-1-fg: #fcd34d;
+    --l-1-border: #92400e;
+    --l-2-bg: #022c22;
+    --l-2-fg: #6ee7b7;
+    --l-2-border: #065f46;
+    --l-3-bg: #082f49;
+    --l-3-fg: #7dd3fc;
+    --l-3-border: #0c4a6e;
+    --l-4-bg: #2e1065;
+    --l-4-fg: #c4b5fd;
+    --l-4-border: #6d28d9;
+  }
+}
+
+html, body, #app {
+  height: 100%;
+}
+body {
+  background: var(--surface);
+  color: var(--fg);
+}
+
+mark.zen-ref { background: #fef9c3; border-radius: 2px; cursor: pointer; padding: 0 1px; }
+mark.zen-ref:hover { background: #fde68a; }

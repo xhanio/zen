@@ -1,0 +1,9 @@
+server: http
+prefix: /
+handlers:
+  - method: GET
+    path: /healthz
+    func: HealthZ
+  - method: GET
+    path: /readyz
+    func: ReadyZ

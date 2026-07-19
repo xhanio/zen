@@ -1,0 +1,46 @@
+# Rendered by `gopro generate docker-compose -e prod`.
+# Run from dist/prod/: `cd dist/prod && docker compose up -d`
+
+services:
+  zen-backend:
+    image: [[ GetImageName "zen-backend" ]]
+    container_name: zen-backend
+    restart: unless-stopped
+    volumes:
+      - zen-data:/data
+    expose:
+      - "8080"
+    networks:
+      - zen-net
+
+  zen-mcp:
+    image: [[ GetImageName "zen-mcp" ]]
+    container_name: zen-mcp
+    restart: unless-stopped
+    environment:
+      ZEN_BACKEND_URL: http://zen-backend:8080/api/v1
+    expose:
+      - "8081"
+    depends_on:
+      - zen-backend
+    networks:
+      - zen-net
+
+  zen-frontend:
+    image: [[ GetImageName "zen-frontend" ]]
+    container_name: zen-frontend
+    restart: unless-stopped
+    ports:
+      - "38000:80"
+    depends_on:
+      - zen-backend
+      - zen-mcp
+    networks:
+      - zen-net
+
+volumes:
+  zen-data:
+
+networks:
+  zen-net:
+    driver: bridge

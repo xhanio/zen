@@ -1,0 +1,15 @@
+server: http
+prefix: /references
+handlers:
+  - method: POST
+    path: /
+    func: CreateReference
+  - method: GET
+    path: /
+    func: ListReferences
+  - method: GET
+    path: /:id
+    func: GetReference
+  - method: DELETE
+    path: /:id
+    func: DeleteReference

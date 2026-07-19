@@ -1,0 +1,22 @@
+log:
+  level: 0
+  file: /var/log/zen-mcp/app.log
+  rotation:
+    max_size: 100
+    max_backups: 3
+    max_age: 7
+
+backend:
+  url: http://127.0.0.1:8080/api/v1
+
+api:
+  http:
+    host: 127.0.0.1
+    port: 8081
+    prefix: /api/v1
+    throttle:
+      rps: 100.0
+      burst_size: 200
+
+pprof:
+  port: 6061

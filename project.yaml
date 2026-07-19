@@ -1,0 +1,120 @@
+# GoPro Configuration for Zen
+# Format: github.com/xhanio/gopro/pkg/types/config.go
+
+product: zen
+version: v1.0.0
+
+default:
+  binary_src: build/binary
+  binary_tgt: bin/
+  binary_build_args:
+    - -v
+    - -gcflags
+    - '-N -l'
+  image_build_src: build/image
+  image_prefix: localhost:5000
+  config_src: env/default/config
+  config_tgt: dist/default/config
+
+  binaries:
+    - zen-backend
+    - zen-mcp
+    - zen-channel
+  images:
+    - zen-backend
+    - zen-mcp
+    - zen-frontend
+  configs:
+    - zen-backend
+    - zen-mcp
+
+env:
+  local:
+    config_src: env/local/config
+    config_tgt: dist/local/config
+  prod:
+    config_src: env/prod/config
+    config_tgt: dist/prod/config
+    docker_compose_src: env/prod/docker-compose
+    docker_compose_tgt: dist/prod
+    image_tag: v1.0.0
+  allinone:
+    config_src: env/allinone/config
+    config_tgt: dist/allinone/config
+    docker_compose_src: env/allinone/docker-compose
+    docker_compose_tgt: dist/allinone
+    image_tag: v1.0.0
+    image_prefix: docker.io/xhanio
+    images:
+      - zen-allinone
+
+build:
+  binaries:
+    # The only cgo binary: gorm -> mattn/go-sqlite3 wraps the C SQLite library.
+    #
+    # -tags sqlite_fts5 is load-bearing, not an optimization. mattn compiles
+    # SQLite with FTS5 off unless the tag is set, and the cards_fts migration
+    # creates an fts5 virtual table at boot — so without it the binary compiles
+    # cleanly and dies on startup with "no such module: fts5".
+    - name: zen-backend
+      build_env:
+        - CGO_ENABLED=1
+      build_args:
+        - -v
+        - -gcflags
+        - '-N -l'
+        - -tags
+        - sqlite_fts5
+      platforms:
+        # linux/amd64 duplicates the default build, but naming it is what makes
+        # gopro write the arch-suffixed file the image COPYs by TARGETARCH. The
+        # rebuild costs ~2s: same inputs, so Go's cache hits and only relinks.
+        #
+        # The image ships linux/amd64 only. Docker Desktop emulates it on Apple
+        # Silicon, so Macs run it without an arm64 build; a bare Linux ARM host
+        # has no emulation registered and needs QEMU/binfmt registered first
+        # (docker run --privileged --rm tonistiigi/binfmt --install amd64).
+        # Adding linux/arm64 back means restoring the arm64 entry here with
+        # env: [CC=aarch64-linux-gnu-gcc] — CC has to live
+        # per-platform because build_env also applies to the host build, where
+        # the aarch64 compiler fails with "unrecognized option '-m64'".
+        - name: linux/amd64
+      config_dir: /etc/zen-backend
+    # Server-side but pure Go (no SQLite), so nothing imports "C" and no C
+    # toolchain is involved on any target.
+    - name: zen-mcp
+      config_dir: /etc/zen-mcp
+      platforms:
+        - name: linux/amd64
+    # Plugin-side. The Zen Claude Code plugin spawns this on the user's own
+    # machine as a local stdio process (see plugins/zen/.mcp.json), so it needs
+    # native binaries for wherever people run Claude Code — including Apple Silicon.
+    - name: zen-channel
+      platforms:
+        - name: darwin/arm64
+        - name: darwin/amd64
+        - name: linux/amd64
+        - name: linux/arm64
+  images:
+    - name: zen-backend
+      base: ubuntu:22.04
+    - name: zen-mcp
+      base: ubuntu:22.04
+    - name: zen-frontend
+      base: nginx:alpine
+    - name: zen-allinone
+      base: ubuntu:22.04
+
+generate:
+  configs:
+    - name: zen-backend
+      files:
+        - migrations/*.up.sql
+        - migrations/*.down.sql
+        - config.yaml
+    - name: zen-mcp
+      files:
+        - config.yaml
+  docker_compose:
+    files:
+      - docker-compose.yaml

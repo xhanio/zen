@@ -1,0 +1,6 @@
+server: http
+prefix: /_sessions
+handlers:
+  - method: WS
+    path: /ws
+    func: SessionsWS

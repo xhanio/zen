@@ -1,0 +1,33 @@
+server: http
+prefix: /conversations
+handlers:
+  - method: POST
+    path: /
+    func: CreateConversation
+  - method: GET
+    path: /
+    func: ListConversations
+  - method: GET
+    path: /:id
+    func: GetConversation
+  - method: PUT
+    path: /:id
+    func: UpdateConversationTitle
+  - method: DELETE
+    path: /:id
+    func: DeleteConversation
+  - method: GET
+    path: /:id/messages
+    func: ListMessages
+  - method: POST
+    path: /:id/messages
+    func: AppendMessage
+  - method: POST
+    path: /:id/messages/:mid/dispatch
+    func: DispatchMessage
+  - method: WS
+    path: /:id/ws
+    func: WSConversation
+  - method: WS
+    path: /_stream/ws
+    func: StreamWS

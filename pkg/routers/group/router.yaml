@@ -1,0 +1,18 @@
+server: http
+prefix: /groups
+handlers:
+  - method: POST
+    path: /
+    func: CreateGroup
+  - method: GET
+    path: /
+    func: ListGroups
+  - method: GET
+    path: /:id
+    func: GetGroup
+  - method: PUT
+    path: /:id
+    func: UpdateGroup
+  - method: DELETE
+    path: /:id
+    func: DeleteGroup

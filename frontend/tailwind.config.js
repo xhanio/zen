@@ -1,0 +1,60 @@
+/** @type {import('tailwindcss').Config} */
+export default {
+  content: ['./index.html', './src/**/*.{vue,ts}'],
+  theme: {
+    extend: {
+      fontFamily: {
+        sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        serif: ['Newsreader', 'Georgia', 'serif'],
+      },
+      colors: {
+        surface: 'var(--surface)',
+        nav: 'var(--nav)',
+        muted: 'var(--muted)',
+        paper: 'var(--paper)',
+        'paper-fg': 'var(--paper-fg)',
+        fg: 'var(--fg)',
+        'muted-fg': 'var(--muted-fg)',
+        border: 'var(--border)',
+        'accent-bg': 'var(--accent-bg)',
+        'accent-fg': 'var(--accent-fg)',
+        'accent-border': 'var(--accent-border)',
+        'destructive-bg': 'var(--destructive-bg)',
+        'destructive-fg': 'var(--destructive-fg)',
+        'destructive-border': 'var(--destructive-border)',
+        'active-bg': 'var(--active-bg)',
+        'active-fg': 'var(--active-fg)',
+        // Per-level ladder (see style.css comment).
+        'l-tbd-bg': 'var(--l-tbd-bg)',
+        'l-tbd-fg': 'var(--l-tbd-fg)',
+        'l-tbd-border': 'var(--l-tbd-border)',
+        'l-0-bg': 'var(--l-0-bg)',
+        'l-0-fg': 'var(--l-0-fg)',
+        'l-0-border': 'var(--l-0-border)',
+        'l-1-bg': 'var(--l-1-bg)',
+        'l-1-fg': 'var(--l-1-fg)',
+        'l-1-border': 'var(--l-1-border)',
+        'l-2-bg': 'var(--l-2-bg)',
+        'l-2-fg': 'var(--l-2-fg)',
+        'l-2-border': 'var(--l-2-border)',
+        'l-3-bg': 'var(--l-3-bg)',
+        'l-3-fg': 'var(--l-3-fg)',
+        'l-3-border': 'var(--l-3-border)',
+        'l-4-bg': 'var(--l-4-bg)',
+        'l-4-fg': 'var(--l-4-fg)',
+        'l-4-border': 'var(--l-4-border)',
+      },
+    },
+  },
+  // Safelist per-level classes so the JIT includes them even when built
+  // dynamically via the levelPalette helper.
+  safelist: [
+    'border-t-l-tbd-border', 'bg-l-tbd-bg', 'text-l-tbd-fg', 'bg-l-tbd-fg',
+    'border-t-l-0-border', 'bg-l-0-bg', 'text-l-0-fg', 'bg-l-0-fg',
+    'border-t-l-1-border', 'bg-l-1-bg', 'text-l-1-fg', 'bg-l-1-fg',
+    'border-t-l-2-border', 'bg-l-2-bg', 'text-l-2-fg', 'bg-l-2-fg',
+    'border-t-l-3-border', 'bg-l-3-bg', 'text-l-3-fg', 'bg-l-3-fg',
+    'border-t-l-4-border', 'bg-l-4-bg', 'text-l-4-fg', 'bg-l-4-fg',
+  ],
+  plugins: [],
+}

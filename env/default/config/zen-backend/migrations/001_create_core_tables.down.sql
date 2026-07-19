@@ -1,0 +1,11 @@
+DROP INDEX IF EXISTS card_tags_tag_idx;
+DROP TABLE IF EXISTS card_tags;
+DROP INDEX IF EXISTS cards_document_idx;
+DROP INDEX IF EXISTS cards_group_idx;
+DROP TABLE IF EXISTS cards;
+DROP INDEX IF EXISTS documents_group_idx;
+DROP TABLE IF EXISTS documents;
+DROP INDEX IF EXISTS tags_name_uniq;
+DROP TABLE IF EXISTS tags;
+DROP INDEX IF EXISTS groups_sibling_name_uniq;
+DROP TABLE IF EXISTS groups;

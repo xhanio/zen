@@ -1,0 +1,6 @@
+server: http
+prefix: /mcp
+handlers:
+  - method: ANY
+    path: /
+    func: MCP

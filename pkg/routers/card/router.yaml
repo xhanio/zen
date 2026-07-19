@@ -1,0 +1,39 @@
+server: http
+prefix: /cards
+handlers:
+  - method: POST
+    path: /
+    func: CreateCard
+  - method: GET
+    path: /
+    func: ListCards
+  - method: GET
+    path: /:id
+    func: GetCard
+  - method: PUT
+    path: /:id
+    func: UpdateCard
+  - method: DELETE
+    path: /:id
+    func: DeleteCard
+  - method: POST
+    path: /decompose
+    func: DecomposeCard
+  - method: POST
+    path: /compose
+    func: ComposeCard
+  - method: POST
+    path: /:id/restore
+    func: RestoreCard
+  - method: DELETE
+    path: /:id/purge
+    func: PurgeCard
+  - method: GET
+    path: /:id/children
+    func: ListChildren
+  - method: POST
+    path: /:id/reorder
+    func: ReorderCard
+  - method: POST
+    path: /:id/review
+    func: ReviewCard

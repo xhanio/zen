@@ -1,0 +1,6 @@
+server: http
+prefix: /search
+handlers:
+  - method: GET
+    path: /
+    func: Search
