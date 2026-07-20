@@ -11,13 +11,20 @@
 #   install.sh [DIR]              install to DIR            (default: $HOME/zen)
 #   install.sh --update [DIR]     pull newest image + recreate, keeping data
 #   install.sh --uninstall [DIR]  stop and remove the stack (DIR/data kept)
-#   install.sh --no-plugin ...    skip the zen-channel plugin binary (server-only host)
+#   install.sh --no-plugin ...    skip the Claude Code plugin wiring (server-only host)
 #   install.sh --help
 #
-# It also installs the matching zen-channel plugin binary to ~/.local/bin
-# (override with ZEN_BIN_DIR) so the Zen Claude Code plugin can spawn it — its
-# .mcp.json declares `"command": "zen-channel"`, and the image carries a build
-# for every host OS/arch. Pass --no-plugin on a box that only runs the server.
+# It also wires up Claude Code, in two halves that are useless apart:
+#
+#   1. the zen-channel binary -> ~/.local/bin (override with ZEN_BIN_DIR), taken
+#      from the image, which carries a build for every host OS/arch;
+#   2. the `zen` plugin itself, installed from the xhanio marketplace on GitHub
+#      (skills + .mcp.json, which is what declares `"command": "zen-channel"`).
+#
+# Neither half does anything alone — the plugin has nothing to spawn without the
+# binary, and the binary has nothing to invoke it without the plugin — so one
+# --no-plugin flag governs both. Pass it on a box that only runs the server.
+# Both halves are best-effort: they warn but never fail the install.
 #
 # The database lives in DIR/data (a bind mount), so it sits right beside the
 # compose file — back it up by copying that folder. It survives update and
@@ -31,6 +38,14 @@ COMPOSE_IN_IMAGE="/app/deploy/docker-compose.yaml"
 PLUGIN_IN_IMAGE="/app/plugin"            # zen-channel_<os>_<arch> plugin binaries baked in the image
 DEFAULT_DIR="$HOME/zen"
 BINDIR="${ZEN_BIN_DIR:-$HOME/.local/bin}"   # where the zen-channel plugin binary goes (must be on PATH)
+
+# Claude Code plugin, delivered from its own marketplace repo (not from the image).
+# Use the full https:// URL, NOT the `xhanio/plugins` shorthand: the shorthand
+# makes `claude plugin marketplace add` clone over SSH, which fails on any box
+# without a GitHub SSH key — i.e. exactly the new user this installer targets.
+MARKETPLACE_REPO="${ZEN_MARKETPLACE:-https://github.com/xhanio/plugins}"
+MARKETPLACE="xhanio"                     # the name the marketplace declares in its own marketplace.json
+PLUGIN_ID="zen@$MARKETPLACE"
 
 log()  { printf '\033[1m==>\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m!\033[0m  %s\n' "$*" >&2; }
@@ -113,7 +128,7 @@ host_plugin() {
 
 # copy the matching plugin binary out of the image onto PATH so the plugin's
 # `"command": "zen-channel"` resolves. Best-effort: warns, never fails install.
-install_plugin() {
+install_channel_binary() {
   local name cid; name=$(host_plugin)
   cid=$(docker create "$IMAGE")
   mkdir -p "$BINDIR"
@@ -132,9 +147,56 @@ install_plugin() {
   fi
 }
 
-remove_plugin() {
+remove_channel_binary() {
   [ -f "$BINDIR/zen-channel" ] || return 0
   rm -f "$BINDIR/zen-channel" && log "Removed zen-channel from $BINDIR"
+}
+
+# --- half 2: the Claude Code plugin -----------------------------------------
+# `claude plugin` is idempotent — re-adding a marketplace that is already on
+# disk, or re-installing an installed plugin, both succeed and exit 0 — so these
+# are safe to re-run from --update without any "is it already there?" probing.
+
+have_claude() { command -v claude >/dev/null 2>&1; }
+
+warn_no_claude() {
+  warn "Claude Code ('claude') is not on your PATH — skipping the plugin. Once it is installed:"
+  echo "        claude plugin marketplace add $MARKETPLACE_REPO"
+  echo "        claude plugin install $PLUGIN_ID"
+}
+
+install_claude_plugin() {
+  if ! have_claude; then warn_no_claude; return 0; fi
+  if ! claude plugin marketplace add "$MARKETPLACE_REPO" >/dev/null 2>&1; then
+    warn "could not add the '$MARKETPLACE' marketplace — skipping the plugin"
+    echo "        retry: claude plugin marketplace add $MARKETPLACE_REPO"
+    return 0
+  fi
+  if claude plugin install "$PLUGIN_ID" >/dev/null 2>&1; then
+    log "Claude Code plugin -> $PLUGIN_ID  (restart Claude Code to load it)"
+  else
+    warn "could not install $PLUGIN_ID"
+    echo "        retry: claude plugin install $PLUGIN_ID"
+  fi
+}
+
+update_claude_plugin() {
+  if ! have_claude; then warn_no_claude; return 0; fi
+  claude plugin marketplace update "$MARKETPLACE" >/dev/null 2>&1 || true
+  if claude plugin update "$PLUGIN_ID" >/dev/null 2>&1; then
+    log "Claude Code plugin updated  (restart Claude Code to apply)"
+  else
+    install_claude_plugin   # not installed yet (or the marketplace went away) — install it now
+  fi
+}
+
+remove_claude_plugin() {
+  have_claude || return 0     # no Claude Code, nothing to undo — stay silent
+  if claude plugin uninstall "$PLUGIN_ID" -y >/dev/null 2>&1; then
+    log "Removed the Claude Code plugin ($PLUGIN_ID)"
+  fi
+  # The '$MARKETPLACE' marketplace stays registered on purpose: it is inert with
+  # nothing installed from it, and it may serve other plugins the user wants.
 }
 
 case "$mode" in
@@ -148,14 +210,20 @@ case "$mode" in
     echo "    compose file : $compose"
     echo "    data         : $dir/data (bind mount — back up by copying it)"
     echo "    update later : $0 --update ${dir/#$HOME/\$HOME}"
-    [ "$want_plugin" = 1 ] && install_plugin
+    if [ "$want_plugin" = 1 ]; then
+      install_channel_binary
+      install_claude_plugin
+    fi
     ;;
 
   update)
     [ -f "$compose" ] || die "no install found at $dir (run without --update first)"
     log "Pulling the newest image and recreating (data kept)"
     compose_up up -d --pull always
-    [ "$want_plugin" = 1 ] && install_plugin   # refresh the plugin from the newly-pulled image
+    if [ "$want_plugin" = 1 ]; then
+      install_channel_binary   # refresh the binary from the newly-pulled image
+      update_claude_plugin     # and the plugin from its marketplace
+    fi
     log "Updated."
     ;;
 
@@ -164,7 +232,10 @@ case "$mode" in
     log "Stopping and removing the stack (project '$PROJECT')"
     compose_up down            # removes containers + network; the bind-mounted ./data is untouched
     rm -f "$compose"
-    [ "$want_plugin" = 1 ] && remove_plugin
+    if [ "$want_plugin" = 1 ]; then
+      remove_channel_binary
+      remove_claude_plugin
+    fi
     # Leave $dir/data in place; only tidy the dir if it is now empty (no data).
     rmdir "$dir" 2>/dev/null || true   # never rm -rf a chosen dir
     log "Uninstalled. Your data is still at $dir/data."

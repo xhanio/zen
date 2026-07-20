@@ -15,13 +15,12 @@ backend and the `zen-channel` binary on your `$PATH`.
 
 ## Install Zen
 
-The all-in-one image carries its own installer. Extract and run it — it pulls
-the image, starts Zen at `http://localhost:38000`, and drops the matching
-`zen-channel` binary on your `$PATH`:
+One installer does the whole job — it pulls the image, starts Zen at
+`http://localhost:38000`, drops the matching `zen-channel` binary on your
+`$PATH`, and installs this plugin into Claude Code:
 
 ```bash
-docker run --rm --entrypoint cat \
-  docker.io/xhanio/zen-allinone:latest /app/install.sh > zen-install.sh
+curl -fsSL https://raw.githubusercontent.com/xhanio/zen/main/scripts/install.sh -o zen-install.sh
 bash zen-install.sh          # installs to ~/zen; pass a directory to change it
 ```
 
@@ -53,10 +52,11 @@ Swap the filename for your host: `zen-channel_darwin_amd64` (Intel Mac),
 
 ## Add the plugin to Claude Code
 
-With Zen running, add the marketplace and install the plugin:
+The installer above already did this. To do it by hand — or on a machine where
+Zen itself runs elsewhere — add the marketplace and install the plugin:
 
 ```
-/plugin marketplace add github.com/xhanio/plugins
+/plugin marketplace add https://github.com/xhanio/plugins
 /plugin install zen@xhanio
 ```
 

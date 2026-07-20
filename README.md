@@ -36,12 +36,11 @@ See [`plugins/zen/README.md`](plugins/zen/README.md) for the plugin.
 
 ## Run it
 
-Zen ships as one self-contained Docker image that carries its own installer.
-With only Docker installed:
+Zen ships as one self-contained Docker image, with a one-file installer that
+sets it up. With only Docker installed:
 
 ```bash
-docker run --rm --entrypoint cat \
-  docker.io/xhanio/zen-allinone:latest /app/install.sh > zen-install.sh
+curl -fsSL https://raw.githubusercontent.com/xhanio/zen/main/scripts/install.sh -o zen-install.sh
 bash zen-install.sh
 ```
 
@@ -49,6 +48,14 @@ That pulls the image, starts Zen at **http://localhost:38000**, and drops the
 matching `zen-channel` plugin binary on your `$PATH`. Your cards live in
 `~/zen/data` — a plain folder you can back up by copying. Manage it with
 `bash zen-install.sh --update` / `--uninstall`.
+
+Swap `main` for a tag (`.../zen/v1.0.0/scripts/install.sh`) to pin the installer
+to a release.
+
+The installer also registers the Claude Code plugin for you — it adds the
+[`xhanio` marketplace](https://github.com/xhanio/plugins) and installs the `zen`
+plugin, alongside the `zen-channel` binary it needs. Restart Claude Code
+afterwards to load it. Pass `--no-plugin` on a host that only runs the server.
 
 ## Develop
 
@@ -99,7 +106,7 @@ pkg/                  backend, MCP, channel, and service packages
 frontend/             Vue SPA
 build/                Dockerfiles + binary build sources
 env/                  per-environment gopro config + compose templates
-scripts/install.sh    the self-bootstrapping installer (baked into the image)
+scripts/install.sh    the installer users curl down (served raw from GitHub)
 plugins/zen/          the Claude Code plugin (skills + .mcp.json)
 project.yaml          gopro build/deploy configuration
 ```

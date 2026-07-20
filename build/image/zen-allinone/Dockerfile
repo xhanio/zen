@@ -75,18 +75,15 @@ COPY bin/zen-channel_linux_amd64  /app/plugin/zen-channel_linux_amd64
 #   docker cp zen-allinone:/app/deploy/docker-compose.yaml ./docker-compose.yaml
 COPY dist/allinone/docker-compose.yaml /app/deploy/docker-compose.yaml
 
-# The installer itself, so the image is fully self-bootstrapping: a user with
-# only Docker extracts and runs it — no repo checkout, no external download.
-# It pulls this image, extracts the compose above, brings the stack up, and
-# drops the matching /app/plugin binary on PATH.
+# NOTE: install.sh is deliberately NOT baked in. It used to live at
+# /app/install.sh as a stopgap while the repo was private; now that it is public
+# the durable path is the raw URL, which needs no image pull just to read a
+# shell script and cannot go stale against the tag it installs:
 #
-# Temporary delivery mechanism: the durable path is a public raw URL once the
-# repo is published. Until then, the one-command bootstrap is:
+#   curl -fsSL https://raw.githubusercontent.com/xhanio/zen/main/scripts/install.sh -o zen-install.sh
 #
-#   docker run --rm --entrypoint cat \
-#     docker.io/xhanio/zen-allinone:latest /app/install.sh > zen-install.sh
-#   bash zen-install.sh
-COPY scripts/install.sh /app/install.sh
+# The compose above and the /app/plugin binaries stay — those genuinely have to
+# ship with the image, since they are build outputs rather than source.
 
 # nginx: drop Ubuntu's default site, install ours (http{} includes conf.d/*.conf).
 RUN rm -f /etc/nginx/sites-enabled/default
