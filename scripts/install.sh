@@ -26,6 +26,13 @@
 # --no-plugin flag governs both. Pass it on a box that only runs the server.
 # Both halves are best-effort: they warn but never fail the install.
 #
+# Alongside them it adds a `claude` alias carrying the channel flag to your
+# shell rc (~/.zshrc, or ~/.bashrc / ~/.bash_profile on Linux / macOS bash;
+# override with ZEN_SHELL_RC). Without that flag Claude Code loads the plugin
+# but never registers zen's channel, so conversations in the web UI go nowhere.
+# The alias sits in a marked block, so re-running rewrites it and --uninstall
+# takes it back out. It is part of the plugin wiring, so --no-plugin skips it.
+#
 # The database lives in DIR/data (a bind mount), so it sits right beside the
 # compose file — back it up by copying that folder. It survives update and
 # uninstall; uninstall never deletes it (the container writes it as root, so
@@ -139,7 +146,7 @@ install_channel_binary() {
     case ":$PATH:" in
       *":$BINDIR:"*) : ;;
       *) warn "$BINDIR is not on your PATH — Claude Code can't find zen-channel until you add it:"
-         echo "        export PATH=\"$BINDIR:\$PATH\"   # add to ~/.bashrc or ~/.zshrc, then restart the shell" ;;
+         echo "        export PATH=\"$BINDIR:\$PATH\"   # add to $(shell_rc), then restart the shell" ;;
     esac
   else
     docker rm -f "$cid" >/dev/null 2>&1 || true
@@ -150,6 +157,61 @@ install_channel_binary() {
 remove_channel_binary() {
   [ -f "$BINDIR/zen-channel" ] || return 0
   rm -f "$BINDIR/zen-channel" && log "Removed zen-channel from $BINDIR"
+}
+
+# --- half 1b: the `claude` alias that actually opens the channel --------------
+# Installing the plugin is not enough: Claude Code only registers zen's channel
+# when launched with --dangerously-load-development-channels, so a bare `claude`
+# loads the skills and MCP tools but never receives conversation events. The
+# alias bakes that flag in. Pass ONLY this flag with the plugin ref — adding a
+# separate --channels silently breaks registration.
+ALIAS_CMD="claude --dangerously-load-development-channels plugin:$PLUGIN_ID"
+ALIAS_BEGIN="# >>> zen (Claude Code channel) >>>"
+ALIAS_END="# <<< zen (Claude Code channel) <<<"
+
+# Which rc file the user's interactive shell actually reads. bash splits by OS:
+# macOS terminals start login shells (~/.bash_profile), Linux ones don't
+# (~/.bashrc). Override with $ZEN_SHELL_RC for anything exotic.
+shell_rc() {
+  if [ -n "${ZEN_SHELL_RC:-}" ]; then printf '%s' "$ZEN_SHELL_RC"; return; fi
+  case "$(basename "${SHELL:-}")" in
+    zsh)  printf '%s' "${ZDOTDIR:-$HOME}/.zshrc" ;;
+    bash) if [ "$(uname -s)" = Darwin ]; then printf '%s' "$HOME/.bash_profile"
+          else                                printf '%s' "$HOME/.bashrc"; fi ;;
+    *)    printf '%s' "$HOME/.profile" ;;   # ksh/sh/unknown: POSIX fallback
+  esac
+}
+
+# Drop the marked block from $1, if present. Also used by install, so a changed
+# flag or plugin id replaces the old line instead of stacking a second alias.
+strip_alias_block() {
+  local rc="$1" tmp
+  [ -f "$rc" ] || return 0
+  grep -qF "$ALIAS_BEGIN" "$rc" 2>/dev/null || return 0
+  tmp=$(mktemp)
+  awk -v b="$ALIAS_BEGIN" -v e="$ALIAS_END" '
+    $0==b { skip=1; next }
+    $0==e { skip=0; next }
+    !skip { print }' "$rc" > "$tmp" && cat "$tmp" > "$rc"   # cat, not mv: keep the rc's inode/perms
+  rm -f "$tmp"
+}
+
+install_shell_alias() {
+  local rc; rc=$(shell_rc)
+  strip_alias_block "$rc"
+  # A missing rc is normal on a fresh box — create it rather than skipping.
+  { printf '%s\n' "$ALIAS_BEGIN"
+    printf "alias claude='%s'\n" "$ALIAS_CMD"
+    printf '%s\n' "$ALIAS_END"
+  } >> "$rc" || { warn "could not write $rc — add this yourself:"
+                  echo "        alias claude='$ALIAS_CMD'"; return 0; }
+  log "claude alias -> $rc  (run 'source $rc' or open a new shell)"
+}
+
+remove_shell_alias() {
+  local rc; rc=$(shell_rc)
+  grep -qF "$ALIAS_BEGIN" "$rc" 2>/dev/null || return 0
+  strip_alias_block "$rc" && log "Removed the claude alias from $rc"
 }
 
 # --- half 2: the Claude Code plugin -----------------------------------------
@@ -213,6 +275,7 @@ case "$mode" in
     if [ "$want_plugin" = 1 ]; then
       install_channel_binary
       install_claude_plugin
+      install_shell_alias
     fi
     ;;
 
@@ -223,6 +286,7 @@ case "$mode" in
     if [ "$want_plugin" = 1 ]; then
       install_channel_binary   # refresh the binary from the newly-pulled image
       update_claude_plugin     # and the plugin from its marketplace
+      install_shell_alias      # rewrites the block, so a changed flag propagates
     fi
     log "Updated."
     ;;
@@ -235,6 +299,7 @@ case "$mode" in
     if [ "$want_plugin" = 1 ]; then
       remove_channel_binary
       remove_claude_plugin
+      remove_shell_alias
     fi
     # Leave $dir/data in place; only tidy the dir if it is now empty (no data).
     rmdir "$dir" 2>/dev/null || true   # never rm -rf a chosen dir

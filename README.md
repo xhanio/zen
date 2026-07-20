@@ -45,8 +45,9 @@ bash zen-install.sh
 ```
 
 That pulls the image, starts Zen at **http://localhost:38000**, and drops the
-matching `zen-channel` plugin binary on your `$PATH`. Your cards live in
-`~/zen/data` — a plain folder you can back up by copying. Manage it with
+matching `zen-channel` plugin binary into `~/.local/bin` (override with
+`ZEN_BIN_DIR`; the installer warns if that isn't on your `PATH`). Your cards
+live in `~/zen/data` — a plain folder you can back up by copying. Manage it with
 `bash zen-install.sh --update` / `--uninstall`.
 
 Swap `main` for a tag (`.../zen/v1.0.0/scripts/install.sh`) to pin the installer
@@ -57,10 +58,45 @@ The installer also registers the Claude Code plugin for you — it adds the
 plugin, alongside the `zen-channel` binary it needs. Restart Claude Code
 afterwards to load it. Pass `--no-plugin` on a host that only runs the server.
 
+Loading the plugin is not quite enough for the chat-from-the-UI half. Claude
+Code only registers Zen's channel when launched with an extra flag, so the
+installer also adds this alias to your shell rc (`~/.zshrc`, or `~/.bashrc` /
+`~/.bash_profile` on Linux / macOS bash; override with `ZEN_SHELL_RC`):
+
+```bash
+alias claude='claude --dangerously-load-development-channels plugin:zen@xhanio'
+```
+
+Open a new shell and `claude` does the right thing. Without that flag the
+plugin still loads its skills and MCP tools — cards, search, decompose all work
+— but messages you send from Zen's web UI never reach your session. Channels
+are a research preview; that flag is what registers one today, and it must be
+passed *alone* (never alongside `--channels`). Use `\claude` to launch without
+it. See [`plugins/zen/README.md`](plugins/zen/README.md) for the details.
+
+The installer reads a few environment variables, all optional:
+
+| Variable | Default | Use it to |
+|---|---|---|
+| `ZEN_IMAGE` | `docker.io/xhanio/zen-allinone:latest` | pull the server image from a mirror, a private registry, or a local build |
+| `ZEN_MARKETPLACE` | `https://github.com/xhanio/plugins` | add the plugin marketplace from a fork or internal mirror |
+| `ZEN_BIN_DIR` | `~/.local/bin` | put the `zen-channel` binary somewhere else on your `PATH` |
+| `ZEN_SHELL_RC` | per shell/OS | write the `claude` alias to a specific rc file |
+
+One separate variable, `ZEN_BACKEND_URL`, is read by the `zen-channel` binary at
+run time rather than by the installer — set it in your shell when Zen is
+published on a port other than 38000. It steers the channel connection only, not
+the `zen` MCP server URL pinned in the plugin's `.mcp.json`, so a non-default
+port takes more than this one variable; see
+[`plugins/zen/README.md`](plugins/zen/README.md).
+
 ## Develop
 
 Prerequisites: **Go 1.26+**, **Node 20+**, and [`gopro`](https://github.com/xhanio/gopro)
-(the build tool) on your `$PATH`.
+(the build tool) on your `$PATH`. The backend needs **cgo** and builds with
+`-tags sqlite_fts5`, so a C toolchain (`build-essential` / Xcode CLT) has to be
+present — without it the build fails on the SQLite driver rather than on
+anything Zen-specific.
 
 ```bash
 make deps      # npm install in frontend/
@@ -97,7 +133,25 @@ Built and packaged with [`gopro`](https://github.com/xhanio/gopro) from
   `install.sh` above targets this. `linux/amd64`; Docker Desktop emulates it on
   Apple Silicon.
 - **prod** (`-e prod`) — the same three services as separate images behind a
-  compose file, for a conventional multi-container deploy.
+  compose file, for a conventional multi-container deploy. Build and bring it
+  up with:
+
+  ```bash
+  gopro build binary -e prod
+  gopro generate config -e prod
+  gopro build image -e prod              # tags localhost:5000/zen-*:<image_tag>
+  gopro generate docker-compose -e prod
+  docker compose -f dist/prod/docker-compose.yaml -p prod up -d
+  ```
+
+  Pass `-p prod` every time: the database lives on the named volume
+  `prod_zen-data`, and without an explicit project name the working directory
+  names it instead — you get a fresh empty volume and what looks like data
+  loss. The `localhost:5000` prefix is a local tag, not a registry to push to.
+
+On a release, bump the top-level `version:` in `project.yaml` **and** the
+per-environment `image_tag:` under each env — they don't follow each other, so
+bumping only `version` builds images under the previous tag.
 
 ## Layout
 
