@@ -41,6 +41,11 @@ export const useConversationsStore = defineStore('conversations', () => {
   const byID = ref<Record<string, Conversation>>({});
   const messagesByConv = ref<Record<string, Message[]>>({});
 
+  // Conversations cached per anchor, keyed `${kind}:${id}`. Populated by
+  // loadForAnchor; read by linkedFor. Separate from the shared `list` so a
+  // card view's per-section reads never touch the list's sequence guard.
+  const byAnchor = ref<Record<string, Conversation[]>>({});
+
   const activeID = ref<string | null>(null);
 
   // Delivery lives in the presence store, which owns the control stream. Grab
@@ -233,6 +238,57 @@ export const useConversationsStore = defineStore('conversations', () => {
     const c = resp.conversations[0] ?? null;
     if (c) byID.value[c.id] = c;
     return c;
+  }
+
+  function anchorKey(kind: string, id: string): string {
+    return `${kind}:${id}`;
+  }
+
+  // Fetch every conversation anchored to (kind, id) and cache it by anchor.
+  // Bypasses the shared `list`/`listSeq` — same reasoning as mostRecentForAnchor:
+  // a per-anchor read must not touch the shared sequence guard.
+  async function loadForAnchor(kind: string, id: string): Promise<void> {
+    const resp = await apiList({ anchorKind: kind, anchorID: id });
+    byAnchor.value = { ...byAnchor.value, [anchorKey(kind, id)]: resp.conversations };
+    for (const c of resp.conversations) byID.value[c.id] = c;
+  }
+
+  // Ensure a single conversation is in `byID` — used to resolve a card's origin
+  // (source) conversation title. A missing/deleted origin is swallowed: it stays
+  // absent and linkedFor omits it.
+  async function ensureConversation(id: string): Promise<void> {
+    if (byID.value[id]) return;
+    try {
+      byID.value[id] = await apiGet(id);
+    } catch { /* origin may be deleted; leave it absent */ }
+  }
+
+  // A card anchor's linked conversations: its origin (source) plus every
+  // discussion anchored to it, deduped by id (origin wins), discussions newest
+  // first by last_message_at. Presence = items.length > 0. Pure read of
+  // byAnchor/byID so a component computed tracks it.
+  function linkedFor(
+    anchorId: string,
+    sourceConversationId: string | null,
+  ): { items: Array<{ conversation: Conversation; kind: 'origin' | 'discussion' }> } {
+    const items: Array<{ conversation: Conversation; kind: 'origin' | 'discussion' }> = [];
+    const seen = new Set<string>();
+    if (sourceConversationId) {
+      const origin = byID.value[sourceConversationId];
+      if (origin) {
+        items.push({ conversation: origin, kind: 'origin' });
+        seen.add(origin.id);
+      }
+    }
+    const anchored = byAnchor.value[anchorKey('card', anchorId)] ?? [];
+    const discussions = anchored
+      .filter((c) => !seen.has(c.id))
+      .slice()
+      .sort((a, b) =>
+        a.last_message_at < b.last_message_at ? 1 : a.last_message_at > b.last_message_at ? -1 : 0,
+      );
+    for (const c of discussions) items.push({ conversation: c, kind: 'discussion' });
+    return { items };
   }
 
   async function loadConversation(id: string) {
@@ -430,9 +486,10 @@ export const useConversationsStore = defineStore('conversations', () => {
   }
 
   return {
-    list, listLoading, listError, byID, messagesByConv, activeID, pendingAssistant,
+    list, listLoading, listError, byID, byAnchor, messagesByConv, activeID, pendingAssistant,
     threadStatus, undelivered,
-    loadList, mostRecentForAnchor, loadConversation, create, deleteOne, rename, setActive, optimisticPost, resend,
+    loadList, mostRecentForAnchor, loadForAnchor, ensureConversation, linkedFor,
+    loadConversation, create, deleteOne, rename, setActive, optimisticPost, resend,
     deliveryState, catchUp,
     resolveAnchorTitle, anchorGenesis,
     $reset,

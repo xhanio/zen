@@ -587,3 +587,56 @@ describe('deliveryState', () => {
     expect(store.deliveryState('m1')).toBe('delivered');
   });
 });
+
+describe('linked conversations (card view)', () => {
+  const conv = (over: Partial<Conversation>): Conversation => ({
+    id: 'x', title: 't', anchor_kind: 'card', anchor_id: 'a',
+    created_at: '', last_message_at: '', ...over,
+  });
+
+  it('linkedFor merges origin + discussions, origin first, discussions newest first', () => {
+    const store = useConversationsStore();
+    store.byID = { o1: conv({ id: 'o1', title: 'origin', anchor_kind: null, anchor_id: null }) };
+    store.byAnchor = {
+      'card:a': [
+        conv({ id: 'd1', last_message_at: '2026-07-01T00:00:00Z' }),
+        conv({ id: 'd2', last_message_at: '2026-07-10T00:00:00Z' }),
+      ],
+    };
+    const { items } = store.linkedFor('a', 'o1');
+    expect(items.map((i) => [i.kind, i.conversation.id])).toEqual([
+      ['origin', 'o1'], ['discussion', 'd2'], ['discussion', 'd1'],
+    ]);
+  });
+
+  it('linkedFor dedups an origin that is also anchored, keeping it as origin', () => {
+    const store = useConversationsStore();
+    store.byID = { o1: conv({ id: 'o1' }) };
+    store.byAnchor = { 'card:a': [conv({ id: 'o1' }), conv({ id: 'd1' })] };
+    const { items } = store.linkedFor('a', 'o1');
+    expect(items.filter((i) => i.conversation.id === 'o1')).toHaveLength(1);
+    expect(items[0].kind).toBe('origin');
+  });
+
+  it('linkedFor omits a missing origin (not in byID)', () => {
+    const store = useConversationsStore();
+    store.byAnchor = { 'card:a': [conv({ id: 'd1' })] };
+    const { items } = store.linkedFor('a', 'gone');
+    expect(items.map((i) => i.conversation.id)).toEqual(['d1']);
+  });
+
+  it('loadForAnchor caches anchored conversations by anchor and by id', async () => {
+    mockSequence([{ status: 200, body: { conversations: [conv({ id: 'd1' }), conv({ id: 'd2' })] } }]);
+    const store = useConversationsStore();
+    await store.loadForAnchor('card', 'a');
+    expect(store.byAnchor['card:a'].map((c) => c.id)).toEqual(['d1', 'd2']);
+    expect(store.byID['d1'].id).toBe('d1');
+  });
+
+  it('ensureConversation swallows a missing origin', async () => {
+    mockSequence([{ status: 404, body: { message: 'gone' } }]);
+    const store = useConversationsStore();
+    await store.ensureConversation('gone');
+    expect(store.byID['gone']).toBeUndefined();
+  });
+});
