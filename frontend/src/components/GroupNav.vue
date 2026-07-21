@@ -5,7 +5,7 @@ import { storeToRefs } from 'pinia';
 import { useGroupsStore } from '../stores/groups';
 import { useLevelFilterStore } from '../stores/levelFilter';
 import { useCardsStore } from '../stores/cards';
-import { sortCatalog, weightForCard } from '../utils/levelCatalog';
+import { sortCatalog } from '../utils/levelCatalog';
 import { documentsIn } from '../utils/documents';
 import { levelColor, levelSpineGradient } from '../utils/levelPalette';
 import GroupEditDialog from './group/GroupEditDialog.vue';
@@ -51,8 +51,11 @@ function cardCount(gid: string): number | null {
 function docCount(gid: string): number {
   return documentsIn(byGroup.value[gid] ?? []).length;
 }
-function levelCount(g: Group, weight: number): number {
-  return liveCards(g.id).filter((c) => weightForCard(g.level_catalog ?? [], c) === weight).length;
+// Count a level by its own entry id, not its weight: two entries can share a
+// weight (score), so weight-keyed counting would report the combined total for
+// each of them. Matches the board's per-entry grouping in GroupView.
+function levelCount(gid: string, entryId: string): number {
+  return liveCards(gid).filter((c) => c.level_entry_id === entryId).length;
 }
 function levelColorFor(catalog: LevelEntry[], weight: number): string {
   return levelColor(catalog, weight).fg;
@@ -141,7 +144,7 @@ async function submitCreate() {
                 : { boxShadow: 'inset 0 0 0 1.5px var(--muted-fg)' }"
             ></span>
             <span class="flex-1" :class="isSelected(g.id, entry.id, g.level_catalog) ? 'text-fg' : 'text-muted-fg'">{{ entry.name }}</span>
-            <span class="shrink-0 text-[11px] tabular-nums text-muted-fg">{{ levelCount(g, entry.weight) }}</span>
+            <span class="shrink-0 text-[11px] tabular-nums text-muted-fg">{{ levelCount(g.id, entry.id) }}</span>
           </button>
           <button
             type="button"

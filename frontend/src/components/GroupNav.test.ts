@@ -102,6 +102,30 @@ describe('GroupNav', () => {
     expect(row).toContain('1'); // 1 document
   });
 
+  it('counts each level by its own entry, not by shared weight (same-score levels)', async () => {
+    const store = useGroupsStore();
+    store.groups = [{
+      id: 'G1', name: 'design', rule: '', position: 0,
+      // Two levels at the same weight (score) — a supported case.
+      level_catalog: [{ id: 'E1', weight: 0, name: '原则' }, { id: 'E2', weight: 0, name: '决策' }],
+      created_at: '', updated_at: '',
+    }];
+    const cards = useCardsStore();
+    cards.byGroup['G1'] = [
+      card({ id: 'a', level_entry_id: 'E1' }),
+      card({ id: 'b', level_entry_id: 'E2' }),
+      card({ id: 'c', level_entry_id: 'E2' }),
+    ];
+    const w = await mountAt('/g/G1');
+    await flushPromises();
+    const e1 = w.find('[data-test="level-G1-E1"]').text();
+    const e2 = w.find('[data-test="level-G1-E2"]').text();
+    expect(e1).toContain('1'); // E1 owns exactly one card
+    expect(e1).not.toContain('3'); // not the combined same-weight total
+    expect(e2).toContain('2'); // E2 owns exactly two cards
+    expect(e2).not.toContain('3');
+  });
+
   it('the Edit group button opens the edit dialog', async () => {
     const store = useGroupsStore();
     store.groups = [{ id: 'G1', name: 'design', rule: '', position: 0, level_catalog: [], created_at: '', updated_at: '' }];
