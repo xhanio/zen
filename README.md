@@ -50,7 +50,7 @@ matching `zen-channel` plugin binary into `~/.local/bin` (override with
 live in `~/zen/data` — a plain folder you can back up by copying. Manage it with
 `bash zen-install.sh --update` / `--uninstall`.
 
-Swap `main` for a tag (`.../zen/v1.0.0/scripts/install.sh`) to pin the installer
+Swap `main` for a tag (`.../zen/v1.0.1/scripts/install.sh`) to pin the installer
 to a release.
 
 The installer also registers the Claude Code plugin for you — it adds the
