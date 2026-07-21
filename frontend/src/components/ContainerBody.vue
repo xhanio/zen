@@ -254,11 +254,12 @@ async function onSectionDrop(idx: number, e: DragEvent) {
         @dragover="(e) => onSectionDragOver(idx, e)"
         @drop="(e) => onSectionDrop(idx, e)"
       >
-        <SectionConversationChip
-          class="absolute right-2 top-2 z-10"
-          :anchor-id="child.id"
-          :source-conversation-id="child.source_conversation_id"
-        />
+        <div class="absolute right-2 top-2 z-10">
+          <SectionConversationChip
+            :anchor-id="child.id"
+            :source-conversation-id="child.source_conversation_id"
+          />
+        </div>
         <!-- Feathered insertion line: 3px tall gradient centered in the 6px
              gap. Peaks at ~70% opacity in the middle and fades to transparent
              at both ends. Absolute-positioned so its appearance never nudges
