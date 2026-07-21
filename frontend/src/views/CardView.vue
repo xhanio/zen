@@ -519,7 +519,7 @@ function onContentClick(event: MouseEvent) {
     >
       <div
         v-if="gutterTarget"
-        class="absolute left-0 top-0 flex w-[34px] justify-center transition-transform duration-200 ease-out"
+        class="absolute left-0 top-2 flex w-[34px] justify-center transition-transform duration-200 ease-out"
         :style="{ transform: `translateY(${gutterMenuY}px)` }"
       >
         <SectionActionsMenu :card="gutterTarget" />
