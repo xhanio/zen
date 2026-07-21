@@ -40,7 +40,7 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocClick, true));
       v-if="open"
       data-test="section-menu"
       role="menu"
-      class="absolute right-0 top-7 z-20 w-32 rounded-md border border-border bg-paper p-1 shadow-lg"
+      class="absolute left-0 top-7 z-20 w-32 rounded-md border border-border bg-paper p-1 shadow-lg"
     >
       <RouterLink
         :to="{ name: 'card', params: { cardId: props.card.id } }"

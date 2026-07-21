@@ -284,7 +284,7 @@ async function onSectionDrop(idx: number, e: DragEvent) {
           @dragstart="(e) => onRibbonDragStart(child, e)"
           @dragend="onRibbonDragEnd"
         ></div>
-        <div class="min-w-0 flex-1" @click="markSectionRead(child)">
+        <div class="min-w-0 flex-1 pr-6" @click="markSectionRead(child)">
           <div
             data-test="section-title"
             role="button"
