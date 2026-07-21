@@ -14,6 +14,8 @@ vi.mock('../api/client', () => ({
   purgeCard: vi.fn(),
   listTags: vi.fn().mockResolvedValue([]),
   listChildren: vi.fn().mockResolvedValue([]),
+  listConversations: vi.fn().mockResolvedValue({ conversations: [] }),
+  getConversation: vi.fn().mockResolvedValue(null),
 }));
 
 const mockOpenForConversation = vi.fn().mockResolvedValue(undefined);
@@ -52,6 +54,10 @@ const mountView = (opts: { attachTo?: HTMLElement } = {}) =>
         ConfirmDialog: true,
         ContentBody: true,
         AskBubble: true,
+        SectionConversationChip: {
+          template: '<span data-test="conv-chip" :data-persistent="String(persistent)" :data-disabled="String(disabled)"></span>',
+          props: { anchorId: String, sourceConversationId: String, persistent: Boolean, disabled: Boolean },
+        },
       },
     },
   });
@@ -62,12 +68,14 @@ describe('CardView — live state (regression)', () => {
     (getCard as any).mockResolvedValue(liveCard);
   });
 
-  it('shows Move to Trash + Discuss; no trash banner; no Restore/Delete Permanently', async () => {
+  it('shows the trash ✕ and the card conversation chip; no discuss button; no trash banner', async () => {
     const w = mountView();
     await flushPromises();
     expect(w.find('[data-test="trash-banner"]').exists()).toBe(false);
-    expect(w.find('[data-test="card-action-trash"]').exists()).toBe(true);
-    expect(w.find('[data-test="card-action-discuss"]').exists()).toBe(true);
+    expect(w.find('[data-test="card-action-trash"]').exists()).toBe(true); // the ✕
+    expect(w.find('[data-test="conv-chip"]').exists()).toBe(true); // persistent card chip
+    expect(w.find('[data-test="conv-chip"]').attributes('data-persistent')).toBe('true');
+    expect(w.find('[data-test="card-action-discuss"]').exists()).toBe(false); // removed
     expect(w.find('[data-test="card-action-restore"]').exists()).toBe(false);
     expect(w.find('[data-test="card-action-purge"]').exists()).toBe(false);
   });
@@ -87,10 +95,11 @@ describe('CardView — trashed state', () => {
     expect(banner.text()).toMatch(/This card is in Trash/i);
   });
 
-  it('hides Move to Trash + Discuss; shows Restore + Delete Permanently', async () => {
+  it('trashed: hides the ✕, still shows the (disabled) card chip, shows Restore + Delete Permanently', async () => {
     const w = mountView();
     await flushPromises();
-    expect(w.find('[data-test="card-action-trash"]').exists()).toBe(false);
+    expect(w.find('[data-test="card-action-trash"]').exists()).toBe(false); // ✕ hidden when trashed
+    expect(w.find('[data-test="conv-chip"]').attributes('data-disabled')).toBe('true');
     expect(w.find('[data-test="card-action-discuss"]').exists()).toBe(false);
     expect(w.find('[data-test="card-action-restore"]').exists()).toBe(true);
     expect(w.find('[data-test="card-action-purge"]').exists()).toBe(true);

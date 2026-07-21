@@ -25,6 +25,7 @@ import { ancestorsOf } from '../utils/titlePath';
 import { levelColor } from '../utils/levelPalette';
 import { sortCatalog } from '../utils/levelCatalog';
 import CardReferencesPanel from '../components/CardReferencesPanel.vue';
+import SectionConversationChip from '../components/SectionConversationChip.vue';
 
 const props = defineProps<{ cardId: string }>();
 
@@ -262,15 +263,6 @@ async function confirmDelete() {
   }
 }
 
-function discussCard() {
-  sidebar.openFor('card', props.cardId, null);
-}
-
-function openSourceConversation() {
-  const conv = card.value?.source_conversation_id;
-  if (conv) void sidebar.openForConversation(conv);
-}
-
 const cardHighlights = computed<Highlight[]>(() =>
   (card.value?.references ?? []).map((r) => ({ id: r.id, text: r.selection_text })),
 );
@@ -314,15 +306,26 @@ function onContentClick(event: MouseEvent) {
       @target-change="onGutterTarget"
     />
     <div class="min-w-0 flex-1">
-    <RouterLink
-      v-if="group"
-      :to="{ name: 'group', params: { groupId: group.id } }"
-      class="mb-4 inline-flex items-center gap-1.5 text-xs text-muted-fg hover:text-fg"
-      data-test="back-to-group"
-    >
-      <span aria-hidden="true">←</span>
-      <span>{{ group.name }}</span>
-    </RouterLink>
+    <div class="mb-4 flex items-center justify-between">
+      <RouterLink
+        v-if="group"
+        :to="{ name: 'group', params: { groupId: group.id } }"
+        class="inline-flex items-center gap-1.5 text-xs text-muted-fg hover:text-fg"
+        data-test="back-to-group"
+      >
+        <span aria-hidden="true">←</span>
+        <span>{{ group.name }}</span>
+      </RouterLink>
+      <span v-else></span>
+      <button
+        v-if="!card.deleted_at"
+        type="button"
+        data-test="card-action-trash"
+        class="rounded px-1.5 py-0.5 text-base leading-none text-destructive-fg hover:bg-destructive-bg"
+        title="Move to Trash"
+        @click="deleteOpen = true"
+      >✕</button>
+    </div>
     <div
       v-if="card.deleted_at"
       data-test="trash-banner"
@@ -356,20 +359,12 @@ function onContentClick(event: MouseEvent) {
           class="rounded px-3 py-1 text-sm text-muted-fg hover:bg-muted"
           @click="tilePrefs.toggleShowTrashedSections"
         >{{ showTrashedSections ? 'Hide trashed sections' : 'Show trashed sections' }}</button>
-        <button
-          v-if="!card.deleted_at"
-          type="button"
-          data-test="card-action-trash"
-          class="rounded border border-border px-3 py-1 text-sm text-muted-fg hover:bg-muted"
-          @click="deleteOpen = true"
-        >Move to Trash</button>
-        <button
-          v-if="!card.deleted_at"
-          type="button"
-          data-test="card-action-discuss"
-          class="rounded border border-accent-border px-3 py-1 text-sm text-accent-fg hover:bg-accent-bg"
-          @click="discussCard"
-        >Discuss this card</button>
+        <SectionConversationChip
+          :anchor-id="cardId"
+          :source-conversation-id="card.source_conversation_id"
+          persistent
+          :disabled="!!card.deleted_at"
+        />
         <button
           v-if="card.deleted_at"
           type="button"
@@ -478,11 +473,6 @@ function onContentClick(event: MouseEvent) {
         >Parent: {{ parent.title }}</RouterLink>
         <span v-else-if="parent && parent.deleted_at">Parent: {{ parent.title }} (in Trash)</span>
         <span v-else>Parent card</span>
-      </p>
-      <p v-if="card.source_conversation_id">
-        <button type="button" class="text-accent-fg hover:underline" @click="openSourceConversation">
-          View the source conversation
-        </button>
       </p>
     </footer>
 
