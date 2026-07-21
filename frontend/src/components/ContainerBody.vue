@@ -7,6 +7,7 @@ import { useGroupsStore } from '../stores/groups';
 import { useContainerFilterStore } from '../stores/containerFilter';
 import CardBody from './CardBody.vue';
 import HtmlBody from './HtmlBody.vue';
+import SectionConversationChip from './SectionConversationChip.vue';
 import { useRenderedSections } from '../composables/useRenderedSections';
 import { colorForCard } from '../utils/levelPalette';
 import type { Card } from '../types/entity';
@@ -248,11 +249,16 @@ async function onSectionDrop(idx: number, e: DragEvent) {
         v-else
         :data-card-id="child.id"
         :data-test="isCollapsed(child) ? 'section-collapsed' : 'section-shell'"
-        class="relative flex gap-4 bg-paper"
+        class="group relative flex gap-4 bg-paper"
         :class="draggingId === child.id ? 'opacity-50' : ''"
         @dragover="(e) => onSectionDragOver(idx, e)"
         @drop="(e) => onSectionDrop(idx, e)"
       >
+        <SectionConversationChip
+          class="absolute right-2 top-2 z-10"
+          :anchor-id="child.id"
+          :source-conversation-id="child.source_conversation_id"
+        />
         <!-- Feathered insertion line: 3px tall gradient centered in the 6px
              gap. Peaks at ~70% opacity in the middle and fades to transparent
              at both ends. Absolute-positioned so its appearance never nudges

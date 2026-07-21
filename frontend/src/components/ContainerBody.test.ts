@@ -16,6 +16,8 @@ vi.mock('../api/client', () => ({
   restoreCard: vi.fn(),
   purgeCard: vi.fn(),
   listChildren: vi.fn(),
+  listConversations: vi.fn().mockResolvedValue({ conversations: [] }),
+  getConversation: vi.fn().mockResolvedValue(null),
 }));
 import { listChildren } from '../api/client';
 
@@ -56,6 +58,31 @@ describe('ContainerBody', () => {
     await flushPromises();
     const rendered = w.findAll('.card-body').map((n) => n.attributes('data-card-id'));
     expect(rendered).toEqual(['a', 'b']);
+  });
+
+  it('mounts a section conversation chip per live section, none for trashed', async () => {
+    const parent = stub({ id: 'p', content: '' });
+    (listChildren as any).mockResolvedValue([
+      stub({ id: 'a', parent_card_id: 'p', position: 0, source_conversation_id: 's-a' }),
+      stub({ id: 'b', parent_card_id: 'p', position: 1 }),
+      stub({ id: 'c', parent_card_id: 'p', position: 2, deleted_at: '2026-07-06T00:00:00Z' }),
+    ]);
+    const w = mount(ContainerBody, {
+      props: { parent },
+      global: {
+        stubs: {
+          RouterLink: routerLinkStub,
+          CardBody: { template: '<div class="card-body"></div>', props: ['card'] },
+          SectionConversationChip: {
+            template: '<span class="conv-chip-stub" :data-anchor="anchorId"></span>',
+            props: ['anchorId', 'sourceConversationId', 'persistent', 'disabled'],
+          },
+        },
+      },
+    });
+    await flushPromises();
+    const anchors = w.findAll('.conv-chip-stub').map((n) => n.attributes('data-anchor'));
+    expect(anchors).toEqual(['a', 'b']); // live sections only, position order
   });
 
   it('a folded section renders title-only (no body, no grade shell)', async () => {
