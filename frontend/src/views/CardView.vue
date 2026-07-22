@@ -433,7 +433,7 @@ function onContentClick(event: MouseEvent) {
         <div
           v-if="isContainerView && (card.content ?? '').trim() !== ''"
           data-test="container-preamble"
-          class="pl-5 py-1 bg-paper"
+          class="pl-5 pr-6 py-1 bg-paper"
         >
           <ContentBody :source="card.content" :format="card.format ?? 'markdown'" />
         </div>

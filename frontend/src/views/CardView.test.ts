@@ -312,6 +312,16 @@ describe('CardView — container preamble', () => {
     expect(w.find('[data-test="container-preamble"]').exists()).toBe(true);
   });
 
+  it('pads the preamble on the right like a section body', async () => {
+    const w = mountView();
+    await flushPromises();
+    // Sections reserve pr-6 on their body so text never runs under the
+    // conversation chip / ⋯ rail. The preamble sits in the same column and
+    // needs the same gutter, or its lines end further right than every
+    // section below it.
+    expect(w.find('[data-test="container-preamble"]').classes()).toContain('pr-6');
+  });
+
   it('does not render the preamble block for a leaf card', async () => {
     (getCard as any).mockResolvedValue(liveCard); // content 'body', no children
     (listChildren as any).mockResolvedValue([]);
