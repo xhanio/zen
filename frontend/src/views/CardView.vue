@@ -8,6 +8,7 @@ import { useTagsStore } from '../stores/tags';
 import { useGroupsStore } from '../stores/groups';
 import CardBody from '../components/CardBody.vue';
 import ContentBody from '../components/ContentBody.vue';
+import CardExportButton from '../components/CardExportButton.vue';
 import ConfirmDialog from '../components/ConfirmDialog.vue';
 import SectionGutter from '../components/SectionGutter.vue';
 import SectionActionsMenu from '../components/SectionActionsMenu.vue';
@@ -317,14 +318,17 @@ function onContentClick(event: MouseEvent) {
         <span>{{ group.name }}</span>
       </RouterLink>
       <span v-else></span>
-      <button
-        v-if="!card.deleted_at"
-        type="button"
-        data-test="card-action-trash"
-        class="rounded px-1.5 py-0.5 text-base leading-none text-destructive-fg hover:bg-destructive-bg"
-        title="Move to Trash"
-        @click="deleteOpen = true"
-      >✕</button>
+      <div class="flex items-center gap-2">
+        <CardExportButton v-if="!card.deleted_at" :card="card" />
+        <button
+          v-if="!card.deleted_at"
+          type="button"
+          data-test="card-action-trash"
+          class="rounded px-1.5 py-0.5 text-base leading-none text-destructive-fg hover:bg-destructive-bg"
+          title="Move to Trash"
+          @click="deleteOpen = true"
+        >✕</button>
+      </div>
     </div>
     <div
       v-if="card.deleted_at"

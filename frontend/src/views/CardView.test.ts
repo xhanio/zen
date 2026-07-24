@@ -79,6 +79,12 @@ describe('CardView — live state (regression)', () => {
     expect(w.find('[data-test="card-action-restore"]').exists()).toBe(false);
     expect(w.find('[data-test="card-action-purge"]').exists()).toBe(false);
   });
+
+  it('shows the Export button for a live card', async () => {
+    const w = mountView();
+    await flushPromises();
+    expect(w.find('[data-test="card-action-export"]').exists()).toBe(true);
+  });
 });
 
 describe('CardView — trashed state', () => {
@@ -93,6 +99,12 @@ describe('CardView — trashed state', () => {
     const banner = w.find('[data-test="trash-banner"]');
     expect(banner.exists()).toBe(true);
     expect(banner.text()).toMatch(/This card is in Trash/i);
+  });
+
+  it('hides the Export button when the card is trashed', async () => {
+    const w = mountView();
+    await flushPromises();
+    expect(w.find('[data-test="card-action-export"]').exists()).toBe(false);
   });
 
   it('trashed: hides the ✕, still shows the (disabled) card chip, shows Restore + Delete Permanently', async () => {
