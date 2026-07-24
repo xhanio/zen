@@ -64,11 +64,13 @@ frontend:
 
 # `make dev` runs backend + Vite together. The trap sends SIGTERM to the whole
 # process group on Ctrl-C / exit so both children die together — no orphan
-# backend left holding port 8080.
+# backend left holding port 8080. `kill 0` also signals this shell, so the
+# handler must disarm itself first: otherwise the TERM trap re-enters and
+# recurses until the stack blows (dash segfaults).
 .PHONY: dev
 dev: config build
 	@echo "==> starting zen-backend + Vite (Ctrl-C stops both)"
-	@trap 'kill 0' EXIT INT TERM; \
+	@trap 'trap "" TERM; trap - EXIT INT; kill 0; exit 0' EXIT INT TERM; \
 	  ( ./$(BACKEND_BIN) daemon -c $(BACKEND_CFG) ) & \
 	  ( cd frontend && npm run dev ) & \
 	  wait
