@@ -21,12 +21,37 @@ describe('serializeCard — leaf', () => {
   it('text leaf: bare title line + body', () => {
     expect(serializeCard(leaf({ title: 'T', content: 'plain' }), 'text')).toBe('T\n\nplain\n');
   });
-  it('html leaf: <h1> with HTML-escaped title + raw body', () => {
-    expect(serializeCard(leaf({ title: 'A & B', content: '<p>hi</p>' }), 'html'))
-      .toBe('<h1>A &amp; B</h1>\n<p>hi</p>\n');
-  });
   it('empty leaf: heading only', () => {
     expect(serializeCard(leaf({ title: 'T', content: '' }), 'markdown')).toBe('# T\n');
+  });
+});
+
+describe('serializeCard — html document wrapping', () => {
+  it('wraps the html body in a styled, dark-mode-aware document with an escaped <title>', () => {
+    const out = serializeCard(leaf({ title: 'A & B', content: '<p>hi</p>' }), 'html');
+    expect(out.startsWith('<!DOCTYPE html>')).toBe(true);
+    expect(out).toContain('<meta charset="utf-8">');
+    expect(out).toContain('<title>A &amp; B</title>');
+    expect(out).toContain('max-width: 760px');
+    expect(out).toContain('@media (prefers-color-scheme: dark)');
+    // the body fragment (escaped H1 heading + raw content) is intact inside <body>
+    expect(out).toContain('<h1>A &amp; B</h1>\n<p>hi</p>');
+  });
+
+  it('wraps a container exactly once, with every section heading inside the body', () => {
+    const tree = node({ title: 'Doc', content: 'Pre' }, [
+      leaf({ title: 'Sec', content: '<p>x</p>' }),
+    ]);
+    const out = serializeCard(tree, 'html');
+    expect(out.match(/<!DOCTYPE html>/g)?.length).toBe(1);
+    expect(out).toContain('<h1>Doc</h1>');
+    expect(out).toContain('<h2>Sec</h2>');
+    expect(out).toContain('<p>x</p>');
+  });
+
+  it('does NOT wrap markdown or text exports in an HTML document', () => {
+    expect(serializeCard(leaf({ title: 'T', content: 'x' }), 'markdown')).not.toContain('<!DOCTYPE');
+    expect(serializeCard(leaf({ title: 'T', content: 'x' }), 'text')).not.toContain('<!DOCTYPE');
   });
 });
 

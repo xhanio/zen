@@ -41,11 +41,62 @@ function appendBlocks(node: ExportNode, depth: number, format: EntityFormat, out
   for (const child of node.children) appendBlocks(child, depth + 1, format, out);
 }
 
+// Standalone-document CSS for HTML exports: a centered 760px reading column,
+// system font, and automatic dark mode. Applied only to the html format so the
+// file reads well when opened directly; markdown/text stay plain.
+const HTML_EXPORT_STYLE = `
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; }
+  body {
+    max-width: 760px;
+    margin: 40px auto;
+    padding: 0 24px;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.6;
+    color: #1a1a1a;
+    background: #ffffff;
+  }
+  h1 { font-size: 1.7rem; line-height: 1.25; margin: 0 0 0.3em; }
+  h2 { line-height: 1.3; margin-top: 1.6em; }
+  h3 { margin-top: 1.2em; color: #333333; }
+  a { color: #0b66c3; }
+  img, pre, table { max-width: 100%; }
+  pre { overflow-x: auto; }
+  @media (prefers-color-scheme: dark) {
+    body { background: #0f1113; color: #e6e7e9; }
+    h1, h2 { color: #f4f5f6; }
+    h3 { color: #c7c9cc; }
+    a { color: #7bb3ff; }
+  }`;
+
+// Wrap an HTML body fragment in a standalone, styled document: title tab,
+// charset, responsive viewport, the reading-column stylesheet, and dark mode.
+// The title is HTML-escaped.
+function htmlDocument(bodyHtml: string, title: string): string {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${escapeHtml(title)}</title>
+<style>${HTML_EXPORT_STYLE}
+</style>
+</head>
+<body>
+${bodyHtml}
+</body>
+</html>
+`;
+}
+
 export function serializeCard(node: ExportNode, format: EntityFormat): string {
   const out: string[] = [];
   appendBlocks(node, 1, format, out);
-  const sep = format === 'html' ? '\n' : '\n\n';
-  return out.join(sep) + '\n';
+  // html exports become a full, styled document; md/text stay plain fragments.
+  if (format === 'html') {
+    return htmlDocument(out.join('\n'), node.card.title);
+  }
+  return out.join('\n\n') + '\n';
 }
 
 export function filenameFor(title: string, format: EntityFormat): string {
