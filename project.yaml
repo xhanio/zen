@@ -2,7 +2,7 @@
 # Format: github.com/xhanio/gopro/pkg/types/config.go
 
 product: zen
-version: v1.0.1
+version: v1.0.2
 
 default:
   binary_src: build/binary
@@ -37,13 +37,13 @@ env:
     config_tgt: dist/prod/config
     docker_compose_src: env/prod/docker-compose
     docker_compose_tgt: dist/prod
-    image_tag: v1.0.1
+    image_tag: v1.0.2
   allinone:
     config_src: env/allinone/config
     config_tgt: dist/allinone/config
     docker_compose_src: env/allinone/docker-compose
     docker_compose_tgt: dist/allinone
-    image_tag: v1.0.1
+    image_tag: v1.0.2
     image_prefix: docker.io/xhanio
     images:
       - zen-allinone
