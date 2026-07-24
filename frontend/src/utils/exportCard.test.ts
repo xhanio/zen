@@ -32,7 +32,7 @@ describe('serializeCard — html document wrapping', () => {
     expect(out.startsWith('<!DOCTYPE html>')).toBe(true);
     expect(out).toContain('<meta charset="utf-8">');
     expect(out).toContain('<title>A &amp; B</title>');
-    expect(out).toContain('max-width: 800px');
+    expect(out).toContain('max-width: 1000px');
     expect(out).toContain('@media (prefers-color-scheme: dark)');
     // the body fragment (escaped H1 heading + raw content) is intact inside <body>
     expect(out).toContain('<h1>A &amp; B</h1>\n<p>hi</p>');
@@ -49,6 +49,11 @@ describe('serializeCard — html document wrapping', () => {
   it('underlines the document title with an h1 border-bottom (header rule)', () => {
     const out = serializeCard(leaf({ title: 'T', content: 'x' }), 'html');
     expect(out).toMatch(/h1\s*\{[^}]*border-bottom/);
+  });
+
+  it('underlines section headings with an h2 border-bottom too', () => {
+    const out = serializeCard(leaf({ title: 'T', content: 'x' }), 'html');
+    expect(out).toMatch(/h2\s*\{[^}]*border-bottom/);
   });
 
   it('wraps a container exactly once, with every section heading inside the body', () => {
