@@ -41,30 +41,38 @@ function appendBlocks(node: ExportNode, depth: number, format: EntityFormat, out
   for (const child of node.children) appendBlocks(child, depth + 1, format, out);
 }
 
-// Standalone-document CSS for HTML exports: a centered 760px reading column,
-// system font, and automatic dark mode. Applied only to the html format so the
-// file reads well when opened directly; markdown/text stay plain.
+// Standalone-document CSS for HTML exports: a centered 800px content card on a
+// tinted page background, system font, and automatic dark mode. Applied only to
+// the html format so the file reads well when opened directly; md/text stay plain.
 const HTML_EXPORT_STYLE = `
   :root { color-scheme: light dark; }
   * { box-sizing: border-box; }
+  html {
+    background: #ebedf0;
+    padding: 40px 16px;
+  }
   body {
-    max-width: 760px;
-    margin: 40px auto;
-    padding: 0 24px;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 28px 36px;
+    background: #ffffff;
+    border-radius: 6px;
+    box-shadow: 0 1px 8px rgba(0, 0, 0, 0.12);
     font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     line-height: 1.6;
     color: #1a1a1a;
-    background: #ffffff;
   }
-  h1 { font-size: 1.7rem; line-height: 1.25; margin: 0 0 0.3em; }
+  h1 { font-size: 1.7rem; line-height: 1.25; margin: 0 0 0.6em; padding-bottom: 0.3em; border-bottom: 1px solid #e2e5e9; }
   h2 { line-height: 1.3; margin-top: 1.6em; }
   h3 { margin-top: 1.2em; color: #333333; }
   a { color: #0b66c3; }
   img, pre, table { max-width: 100%; }
   pre { overflow-x: auto; }
   @media (prefers-color-scheme: dark) {
-    body { background: #0f1113; color: #e6e7e9; }
+    html { background: #0d0e10; }
+    body { background: #17191c; color: #e6e7e9; box-shadow: 0 1px 12px rgba(0, 0, 0, 0.5); }
     h1, h2 { color: #f4f5f6; }
+    h1 { border-bottom-color: #2c2f34; }
     h3 { color: #c7c9cc; }
     a { color: #7bb3ff; }
   }`;
