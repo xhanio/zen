@@ -39,3 +39,12 @@ func WithAuthToken(token string) Option {
 		c.token = token
 	}
 }
+
+// WithActor stamps every request from this client with the actor header. The
+// MCP server constructs its client with WithActor("agent") so snapshots record
+// agent edits without each tool caller having to say so.
+func WithActor(actor string) Option {
+	return func(c *client) {
+		c.actor = actor
+	}
+}

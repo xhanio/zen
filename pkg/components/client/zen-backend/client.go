@@ -9,6 +9,8 @@ import (
 	framingoClient "github.com/xhanio/framingo/pkg/services/api/client"
 	"github.com/xhanio/framingo/pkg/types/api"
 	"github.com/xhanio/framingo/pkg/types/common"
+
+	zenapi "github.com/xhanio/zen/pkg/types/api"
 )
 
 type client struct {
@@ -20,6 +22,9 @@ type client struct {
 	// token is captured from WithAuthToken and applied via SetHeaders after
 	// framingo's Init succeeds.
 	token string
+	// actor is captured from WithActor and stamped on every request as
+	// api.ActorHeader, labelling this client's mutations in card snapshots.
+	actor string
 }
 
 // New returns a Client pointed at baseURL. baseURL must include the API
@@ -36,6 +41,9 @@ func New(baseURL string, opts ...Option) Client {
 	}
 	if c.token != "" {
 		c.framingo.SetHeaders(common.NewPair("Authorization", "Bearer "+c.token))
+	}
+	if c.actor != "" {
+		c.framingo.SetHeaders(common.NewPair(zenapi.ActorHeader, c.actor))
 	}
 	c.fopts = nil
 	return c

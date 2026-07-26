@@ -33,6 +33,9 @@ func (m *manager) initServices() error {
 	m.backend = zenbackend.New(
 		m.config.GetString("backend.url"),
 		zenbackend.WithTimeout(30*time.Second),
+		// Every mutation through the MCP tools is an agent edit; stamping it
+		// here means no tool caller has to remember to say so.
+		zenbackend.WithActor("agent"),
 	)
 
 	m.mcpSvc = mcp.New(m.backend, mcp.WithLogger(m.log))

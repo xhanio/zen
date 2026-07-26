@@ -18,6 +18,9 @@ type CreateCardRequest struct {
 	ParentCardID         *string        `json:"parent_card_id" validate:"omitempty,len=26"`
 	SourceConversationID *string        `json:"source_conversation_id" validate:"omitempty,len=26"`
 	Reference            *ReferenceSpec `json:"reference,omitempty" validate:"omitempty"`
+	// ConversationID attributes this creation to the conversation that
+	// caused it. Never overwrites the card's own source_conversation_id.
+	ConversationID *string `json:"conversation_id,omitempty" validate:"omitempty,len=26"`
 }
 
 type UpdateCardRequest struct {
@@ -31,6 +34,8 @@ type UpdateCardRequest struct {
 	GroupID         *string   `json:"group_id" validate:"omitempty,len=26"`
 	Position        *int      `json:"position"`
 	Tags            *[]string `json:"tags,omitempty" validate:"omitempty,dive,max=50"`
+	// ConversationID attributes this edit to the conversation that caused it.
+	ConversationID *string `json:"conversation_id,omitempty" validate:"omitempty,len=26"`
 }
 
 type ReorderCardRequest struct {
@@ -61,6 +66,7 @@ type DecomposeRequest struct {
 	ParentCardID     string     `json:"parent_card_id" validate:"required,len=26"`
 	ContainerContent *string    `json:"container_content,omitempty" validate:"omitempty,max=1048576"`
 	Cards            []CardSpec `json:"cards" validate:"required,min=1,dive"`
+	ConversationID   *string    `json:"conversation_id,omitempty" validate:"omitempty,len=26"`
 }
 
 type DecomposeResponse struct {

@@ -26,6 +26,12 @@ import (
 	"github.com/xhanio/framingo/pkg/types/api"
 )
 
+// ActorHeader labels the origin of a mutation: "agent" when it arrives via
+// the MCP server's loopback client, "user" otherwise. It is provenance, NOT
+// a trust boundary — any client can send it, and these routes have no auth.
+// Never build an authorization decision on it.
+const ActorHeader = "X-Zen-Actor"
+
 // Context is the per-request value passed to router handlers.
 // It embeds echo.Context (so handlers keep all of Echo's API) and
 // context.Context (so handlers can hand `c` to any context-aware

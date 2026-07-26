@@ -9,6 +9,17 @@ import (
 	"github.com/xhanio/zen/pkg/types/entity"
 )
 
+// attributionFrom reads the transport-supplied actor and the caller-supplied
+// conversation id. Actor never comes from the body: the body is written by
+// whoever is calling, while the header is set once by the MCP client.
+func attributionFrom(c api.Context, conversationID *string) entity.SnapshotAttribution {
+	actor := c.Request().Header.Get(api.ActorHeader)
+	if actor != "agent" {
+		actor = "user"
+	}
+	return entity.SnapshotAttribution{Actor: actor, ConversationID: conversationID}
+}
+
 func (r *router) CreateCard(c api.Context) error {
 	var req api.CreateCardRequest
 	if err := c.Bind(&req); err != nil {
@@ -22,7 +33,7 @@ func (r *router) CreateCard(c api.Context) error {
 		req.ParentCardID, req.SourceConversationID,
 		req.Format, req.LevelEntryID, req.Genesis,
 		req.Reference, req.Summary,
-		entity.SnapshotAttribution{},
+		attributionFrom(c, req.ConversationID),
 	)
 	if err != nil {
 		return errors.Wrap(err)
@@ -66,7 +77,7 @@ func (r *router) UpdateCard(c api.Context) error {
 		req.Position, req.Tags,
 		req.Format, req.LevelEntryID, req.ClearLevelEntry, req.Genesis,
 		req.Summary,
-		entity.SnapshotAttribution{},
+		attributionFrom(c, req.ConversationID),
 	)
 	if err != nil {
 		return errors.Wrap(err)
@@ -94,7 +105,7 @@ func (r *router) DecomposeCard(c api.Context) error {
 	if err := c.Validate(&req); err != nil {
 		return errors.BadRequest.Wrap(err)
 	}
-	resp, err := r.svc.Decompose(c, req, entity.SnapshotAttribution{})
+	resp, err := r.svc.Decompose(c, req, attributionFrom(c, req.ConversationID))
 	if err != nil {
 		return errors.Wrap(err)
 	}

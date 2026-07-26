@@ -210,6 +210,7 @@ type cardCreateIn struct {
 	ParentCardID         *string            `json:"parent_card_id,omitempty"`
 	SourceConversationID *string            `json:"source_conversation_id,omitempty"`
 	Reference            *api.ReferenceSpec `json:"reference,omitempty"`
+	ConversationID       *string            `json:"conversation_id,omitempty"`
 }
 type cardCreateOut struct {
 	Card      *entity.Card `json:"card"`
@@ -251,6 +252,7 @@ type cardUpdateIn struct {
 	GroupID         *string   `json:"group_id,omitempty"`
 	Position        *int      `json:"position,omitempty"`
 	Tags            *[]string `json:"tags,omitempty"`
+	ConversationID  *string   `json:"conversation_id,omitempty"`
 }
 type cardUpdateOut struct {
 	Card      *entity.Card `json:"card"`
@@ -299,18 +301,19 @@ type cardReorderOut struct {
 func (m *manager) registerCardTools() {
 	mcpsdk.AddTool(m.server, &mcpsdk.Tool{
 		Name:        "card.create",
-		Description: `Create a new card. Pass tags[] to attach existing or newly-created tags. For derived cards (spun off from a conversation), pass parent_card_id and source_conversation_id. When you create a card derived from a user's selection in another card, anchor it inline: set parent_card_id + source_conversation_id (optional) + reference: {selection_text: "<verbatim>"}. The backend creates the highlight in the same transaction; you do NOT need a follow-up reference.create. Use standalone reference.create only when adding a reference to a card that was created earlier (back-fill case). "format" is optional and may be "html", "markdown", or "text"; markdown renders with full styling (headings, lists, code, tables, blockquotes). Follow the target group's "rule" for the required format — default to "markdown" when the rule is silent, and use "text" only for literal preformatted content that must not be interpreted. "level_entry_id" attaches the card to an existing catalog entry in its group — call group.list to look up ids. To add a new catalog entry, call group.update first with the desired weight+name; the response includes the assigned id. "genesis" is a free-form human-readable note about where this card came from; defaults to "". **Genesis MUST NOT include raw card IDs, conversation IDs, or any ULID.** Show provenance via a title breadcrumb instead — e.g. "Decomposed from Zen roadmap - v0.12 planning - v0.12 spec" or "Extracted from user chat about SectionGradePill". Titles are what the reader sees on the tile; IDs are unreadable noise. "summary" is an optional short line (aim for <30 words; hard cap 500 chars) shown on the card tile in place of the auto content preview — omit to fall back to the preview. The target group may define a "rule" you MUST satisfy (language, format, abstraction level). Read it via group.get before composing; the result echoes "group_rule" when the destination group has one — if it is non-empty, verify the card conforms and card.update it if not.`,
+		Description: `Create a new card. Pass tags[] to attach existing or newly-created tags. For derived cards (spun off from a conversation), pass parent_card_id and source_conversation_id. When you create a card derived from a user's selection in another card, anchor it inline: set parent_card_id + source_conversation_id (optional) + reference: {selection_text: "<verbatim>"}. The backend creates the highlight in the same transaction; you do NOT need a follow-up reference.create. Use standalone reference.create only when adding a reference to a card that was created earlier (back-fill case). "format" is optional and may be "html", "markdown", or "text"; markdown renders with full styling (headings, lists, code, tables, blockquotes). Follow the target group's "rule" for the required format — default to "markdown" when the rule is silent, and use "text" only for literal preformatted content that must not be interpreted. "level_entry_id" attaches the card to an existing catalog entry in its group — call group.list to look up ids. To add a new catalog entry, call group.update first with the desired weight+name; the response includes the assigned id. "genesis" is a free-form human-readable note about where this card came from; defaults to "". **Genesis MUST NOT include raw card IDs, conversation IDs, or any ULID.** Show provenance via a title breadcrumb instead — e.g. "Decomposed from Zen roadmap - v0.12 planning - v0.12 spec" or "Extracted from user chat about SectionGradePill". Titles are what the reader sees on the tile; IDs are unreadable noise. "summary" is an optional short line (aim for <30 words; hard cap 500 chars) shown on the card tile in place of the auto content preview — omit to fall back to the preview. The target group may define a "rule" you MUST satisfy (language, format, abstraction level). Read it via group.get before composing; the result echoes "group_rule" when the destination group has one — if it is non-empty, verify the card conforms and card.update it if not. When this edit is caused by a Zen conversation message, pass "conversation_id" from the channel event so the change is recorded against that conversation. Omit it for edits not driven by a Zen conversation.`,
 	}, func(ctx context.Context, _ *mcpsdk.CallToolRequest, in cardCreateIn) (*mcpsdk.CallToolResult, cardCreateOut, error) {
 		c, err := m.backend.Card().Create(ctx, api.CreateCardRequest{
 			Title: in.Title, Content: in.Content, Format: in.Format,
-			LevelEntryID: in.LevelEntryID,
-			Genesis:      in.Genesis,
+			LevelEntryID:         in.LevelEntryID,
+			Genesis:              in.Genesis,
 			Summary:              in.Summary,
 			GroupID:              in.GroupID,
 			Tags:                 in.Tags,
 			ParentCardID:         in.ParentCardID,
 			SourceConversationID: in.SourceConversationID,
 			Reference:            in.Reference,
+			ConversationID:       in.ConversationID,
 		})
 		if err != nil {
 			return nil, cardCreateOut{}, errors.Wrap(err)
@@ -353,7 +356,7 @@ func (m *manager) registerCardTools() {
 
 	mcpsdk.AddTool(m.server, &mcpsdk.Tool{
 		Name:        "card.update",
-		Description: `Update one or more fields of a card. Passing tags replaces the entire tag set on THIS card (omit to leave unchanged). **Tag additions cascade to every live descendant** — tagging a container also tags its sections and their children. Tag removals do NOT cascade — a container that drops a tag leaves descendants untouched. "format" may switch between "html", "markdown", and "text"; markdown renders with full styling. Follow the card's group "rule" for the required format. "level_entry_id" targets an existing catalog entry (call group.list to look up ids; use group.update to add a new one). Pass "clear_level_entry": true to detach the card from its catalog entry (Unfiled). "genesis" overrides the card's provenance note. **Genesis MUST NOT include raw card IDs, conversation IDs, or any ULID** — use a title breadcrumb like "Decomposed from Zen roadmap - v0.12 planning - v0.12 spec" instead. "summary" replaces the tile-preview line (empty string clears it, causing the auto content preview to show again). Never rename or delete existing catalog entries from card.update — use group.update for that. When you change "group_id" (move the card), the destination group's "rule" applies: the result echoes "group_rule" — if it is non-empty, transform the card to satisfy it (language, format, level) and card.update again.`,
+		Description: `Update one or more fields of a card. Passing tags replaces the entire tag set on THIS card (omit to leave unchanged). **Tag additions cascade to every live descendant** — tagging a container also tags its sections and their children. Tag removals do NOT cascade — a container that drops a tag leaves descendants untouched. "format" may switch between "html", "markdown", and "text"; markdown renders with full styling. Follow the card's group "rule" for the required format. "level_entry_id" targets an existing catalog entry (call group.list to look up ids; use group.update to add a new one). Pass "clear_level_entry": true to detach the card from its catalog entry (Unfiled). "genesis" overrides the card's provenance note. **Genesis MUST NOT include raw card IDs, conversation IDs, or any ULID** — use a title breadcrumb like "Decomposed from Zen roadmap - v0.12 planning - v0.12 spec" instead. "summary" replaces the tile-preview line (empty string clears it, causing the auto content preview to show again). Never rename or delete existing catalog entries from card.update — use group.update for that. When you change "group_id" (move the card), the destination group's "rule" applies: the result echoes "group_rule" — if it is non-empty, transform the card to satisfy it (language, format, level) and card.update again. When this edit is caused by a Zen conversation message, pass "conversation_id" from the channel event so the change is recorded against that conversation. Omit it for edits not driven by a Zen conversation.`,
 	}, func(ctx context.Context, _ *mcpsdk.CallToolRequest, in cardUpdateIn) (*mcpsdk.CallToolResult, cardUpdateOut, error) {
 		c, err := m.backend.Card().Update(ctx, in.ID, api.UpdateCardRequest{
 			Title: in.Title, Content: in.Content, Format: in.Format,
@@ -364,6 +367,7 @@ func (m *manager) registerCardTools() {
 			GroupID:         in.GroupID,
 			Position:        in.Position,
 			Tags:            in.Tags,
+			ConversationID:  in.ConversationID,
 		})
 		if err != nil {
 			return nil, cardUpdateOut{}, errors.Wrap(err)
@@ -468,7 +472,6 @@ type conversationGetOut struct {
 	Messages     []*entity.Message    `json:"messages"`
 }
 
-
 func (m *manager) registerConversationTools() {
 	mcpsdk.AddTool(m.server, &mcpsdk.Tool{
 		Name:        "conversation.list",
@@ -540,6 +543,7 @@ type decomposeIn struct {
 	ParentCardID     string         `json:"parent_card_id"`
 	ContainerContent *string        `json:"container_content,omitempty"`
 	Cards            []api.CardSpec `json:"cards"`
+	ConversationID   *string        `json:"conversation_id,omitempty"`
 }
 type decomposeOut struct {
 	Cards     []*entity.Card `json:"cards"`
@@ -549,12 +553,13 @@ type decomposeOut struct {
 func (m *manager) registerDecomposeTool() {
 	mcpsdk.AddTool(m.server, &mcpsdk.Tool{
 		Name:        "decompose",
-		Description: `Transactionally split a card into N child cards. The parent stays live; by default its content is CLEARED (empty container) — opening the parent renders the ordered composition of its children. Optionally pass container_content to keep a verbatim leading metadata slice (the document's preamble — e.g. a date/status block) on the parent: it renders above the sections and is NOT a section (never graded, reordered, or counted). container_content is pure metadata (no logic or explanation) and is valid ONLY on a top-level document — a non-empty value when decomposing a nested card is rejected with BadRequest. Rejects re-decompose: a card that already has live children cannot be decomposed again. Each cards[] entry may set title, content, format, level_entry_id, tags, position, genesis, summary; format and group_id inherit from parent unless overridden. Format inherits from the parent unless a child overrides it; markdown renders with full styling, and the children's group "rule" governs the required format. Default position is the cards[] index (0-based). Default genesis is "Decomposed from <ancestor title chain>" — e.g. "Decomposed from Zen roadmap - v0.12 planning - v0.12 spec". Any genesis you override MUST also use titles, never IDs. Decompose is for **lossless splitting**, not synthesis: each child's body should be a verbatim slice of the parent's body. A child's title lives in the "title" field only — if its "content" begins with that same title as a heading, the leading heading is stripped so it is not duplicated in the body (idempotent when already absent). If any spec fails validation, ALL changes roll back. The children's group may define a "rule" you MUST satisfy (language, format, abstraction level). Read it via group.get before composing; the result echoes "group_rule" when that group has one — if it is non-empty, verify each child conforms and card.update it if not.`,
+		Description: `Transactionally split a card into N child cards. The parent stays live; by default its content is CLEARED (empty container) — opening the parent renders the ordered composition of its children. Optionally pass container_content to keep a verbatim leading metadata slice (the document's preamble — e.g. a date/status block) on the parent: it renders above the sections and is NOT a section (never graded, reordered, or counted). container_content is pure metadata (no logic or explanation) and is valid ONLY on a top-level document — a non-empty value when decomposing a nested card is rejected with BadRequest. Rejects re-decompose: a card that already has live children cannot be decomposed again. Each cards[] entry may set title, content, format, level_entry_id, tags, position, genesis, summary; format and group_id inherit from parent unless overridden. Format inherits from the parent unless a child overrides it; markdown renders with full styling, and the children's group "rule" governs the required format. Default position is the cards[] index (0-based). Default genesis is "Decomposed from <ancestor title chain>" — e.g. "Decomposed from Zen roadmap - v0.12 planning - v0.12 spec". Any genesis you override MUST also use titles, never IDs. Decompose is for **lossless splitting**, not synthesis: each child's body should be a verbatim slice of the parent's body. A child's title lives in the "title" field only — if its "content" begins with that same title as a heading, the leading heading is stripped so it is not duplicated in the body (idempotent when already absent). If any spec fails validation, ALL changes roll back. The children's group may define a "rule" you MUST satisfy (language, format, abstraction level). Read it via group.get before composing; the result echoes "group_rule" when that group has one — if it is non-empty, verify each child conforms and card.update it if not. When this split is caused by a Zen conversation message, pass "conversation_id" from the channel event: decompose clears the parent body, and that snapshot is the only record of the text it held.`,
 	}, func(ctx context.Context, _ *mcpsdk.CallToolRequest, in decomposeIn) (*mcpsdk.CallToolResult, decomposeOut, error) {
 		resp, err := m.backend.Card().Decompose(ctx, api.DecomposeRequest{
 			ParentCardID:     in.ParentCardID,
 			ContainerContent: in.ContainerContent,
 			Cards:            in.Cards,
+			ConversationID:   in.ConversationID,
 		})
 		if err != nil {
 			return nil, decomposeOut{}, errors.Wrap(err)
