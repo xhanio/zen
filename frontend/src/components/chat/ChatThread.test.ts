@@ -2,7 +2,9 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import ChatThread from './ChatThread.vue';
+import { nextTick } from 'vue';
 import { useConversationsStore } from '../../stores/conversations';
+import { useSnapshotsStore } from '../../stores/snapshots';
 import { usePresenceStore } from '../../stores/presence';
 import type { ChannelSession, Message } from '../../types/entity';
 
@@ -112,5 +114,41 @@ describe('ChatThread transcript', () => {
       global: { stubs: { MarkdownBody: true } } });
     expect(w.text()).toContain('otherproj');
     expect(w.text()).not.toContain('repo');
+  });
+});
+
+describe('ChatThread snapshot records', () => {
+  it('renders a record between the messages it sits between, in time order', async () => {
+    const store = useConversationsStore();
+    store.messagesByConv = {
+      '01CONV': [
+        m({ id: '01A', created_at: '2026-07-25T10:00:00Z' }),
+        m({ id: '01B', role: 'assistant', created_at: '2026-07-25T10:05:00Z' }),
+      ],
+    };
+    store.activeID = '01CONV';
+    const snapshots = useSnapshotsStore();
+    snapshots.byConversation = {
+      '01CONV': [{
+        id: '01SNAP', card_id: '01CARD', card_title: 'Target card', seq: 3,
+        title: 't', summary: '', content: '', format: 'markdown',
+        actor: 'agent', conversation_id: '01CONV', change_kind: 'update',
+        diff: '', diff_truncated: false, lines_added: 4, lines_removed: 2,
+        created_at: '2026-07-25T10:02:00Z',
+      }],
+    };
+
+    const w = mount(ChatThread, {
+      props: { conversationId: '01CONV' },
+      global: { stubs: { MarkdownBody: true, RouterLink: true } },
+    });
+    await nextTick();
+
+    const record = w.find('[data-test="snapshot-record"]');
+    expect(record.exists()).toBe(true);
+    expect(record.text()).toContain('Target card');
+    expect(record.text()).toContain('#2→#3');
+    // A record must never be mistaken for something Claude said.
+    expect(w.findAll('[data-test="turn"]')).toHaveLength(2);
   });
 });

@@ -29,14 +29,17 @@ export const useSnapshotsStore = defineStore('snapshots', () => {
   const detail = ref<SnapshotDetailView | null>(null);
   const loading = ref(false);
 
+  // `?? []` guards an unexpected body shape: records are a secondary surface,
+  // and a malformed response must not throw through the caller and take the
+  // transcript render down with it.
   async function loadForConversation(conversationID: string) {
     const resp = await listSnapshots({ conversationID });
-    byConversation.value = { ...byConversation.value, [conversationID]: resp.snapshots };
+    byConversation.value = { ...byConversation.value, [conversationID]: resp?.snapshots ?? [] };
   }
 
   async function loadForCard(cardID: string) {
     const resp = await listSnapshots({ cardID });
-    byCard.value = { ...byCard.value, [cardID]: resp.snapshots };
+    byCard.value = { ...byCard.value, [cardID]: resp?.snapshots ?? [] };
   }
 
   async function loadDetail(id: string) {
