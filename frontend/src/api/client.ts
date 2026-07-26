@@ -1,4 +1,4 @@
-import type { Group, Tag, Card, SearchHit, Conversation, Message, ConversationEvent } from '../types/entity';
+import type { Group, Tag, Card, SearchHit, Conversation, Message, ConversationEvent, CardSnapshot, SnapshotDetail } from '../types/entity';
 import {
   BackendError,
   type BackendErrorBody,
@@ -246,3 +246,16 @@ export type {
   Conversation, Message, ConversationEvent,
 };
 export { BackendError };
+
+export function listSnapshots(
+  params: { cardID?: string; conversationID?: string },
+): Promise<{ snapshots: CardSnapshot[] }> {
+  const q = new URLSearchParams();
+  if (params.cardID) q.set('card_id', params.cardID);
+  if (params.conversationID) q.set('conversation_id', params.conversationID);
+  return request('GET', `/snapshots?${q.toString()}`);
+}
+
+export function getSnapshot(id: string): Promise<SnapshotDetail> {
+  return request('GET', `/snapshots/${encodeURIComponent(id)}`);
+}

@@ -114,3 +114,51 @@ export interface ChannelSession {
   client_version: string;
   connected_at: string;
 }
+
+export interface DiffSpan {
+  op: 'eq' | 'del' | 'add';
+  text: string;
+}
+
+export interface DiffField {
+  key: string;
+  spans: DiffSpan[];
+}
+
+export interface DiffLine {
+  op: 'ctx' | 'del' | 'add';
+  text: string;
+  spans?: DiffSpan[];
+}
+
+export interface CardDiff {
+  fields: DiffField[];
+  lines: DiffLine[];
+}
+
+// A card's complete state at one moment. `diff` is a JSON-encoded CardDiff
+// computed by the backend at write time; it is empty when diff_truncated is
+// set, in which case the client shows both bodies instead.
+export interface CardSnapshot {
+  id: string;
+  card_id: string;
+  card_title?: string;
+  seq: number;
+  title: string;
+  summary: string;
+  content: string;
+  format: string;
+  actor: 'user' | 'agent' | 'system';
+  conversation_id: string | null;
+  change_kind: 'create' | 'update' | 'decompose' | 'baseline';
+  diff: string;
+  diff_truncated: boolean;
+  lines_added: number;
+  lines_removed: number;
+  created_at: string;
+}
+
+export interface SnapshotDetail {
+  snapshot: CardSnapshot;
+  previous: CardSnapshot | null;
+}
