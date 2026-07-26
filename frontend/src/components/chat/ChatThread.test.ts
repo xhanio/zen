@@ -152,3 +152,45 @@ describe('ChatThread snapshot records', () => {
     expect(w.findAll('[data-test="turn"]')).toHaveLength(2);
   });
 });
+
+describe('ChatThread empty state', () => {
+  it('says nothing-yet only when the timeline is truly empty', async () => {
+    const store = useConversationsStore();
+    store.messagesByConv = { '01CONV': [] };
+    store.activeID = '01CONV';
+
+    const w = mount(ChatThread, {
+      props: { conversationId: '01CONV' },
+      global: { stubs: { MarkdownBody: true } },
+    });
+    await nextTick();
+    expect(w.text()).toContain('No messages yet.');
+  });
+
+  // Reachable for real: an agent edit can cite a conversation that has no
+  // messages. Claiming emptiness above a visible record contradicts itself.
+  it('does not claim emptiness when records exist without messages', async () => {
+    const store = useConversationsStore();
+    store.messagesByConv = { '01CONV': [] };
+    store.activeID = '01CONV';
+    const snapshots = useSnapshotsStore();
+    snapshots.byConversation = {
+      '01CONV': [{
+        id: '01SNAP', card_id: '01CARD', card_title: 'Edited card', seq: 2,
+        title: 't', summary: '', content: '', format: 'markdown',
+        actor: 'agent', conversation_id: '01CONV', change_kind: 'update',
+        diff: '', diff_truncated: false, lines_added: 1, lines_removed: 0,
+        created_at: '2026-07-25T10:00:00Z',
+      }],
+    };
+
+    const w = mount(ChatThread, {
+      props: { conversationId: '01CONV' },
+      global: { stubs: { MarkdownBody: true } },
+    });
+    await nextTick();
+
+    expect(w.find('[data-test="snapshot-record"]').exists()).toBe(true);
+    expect(w.text()).not.toContain('No messages yet.');
+  });
+});

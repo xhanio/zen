@@ -139,7 +139,11 @@ watch(messages, async () => {
 
 <template>
   <div ref="scrollRef" class="flex min-h-0 flex-1 flex-col gap-3.5 overflow-y-auto px-3 py-3">
-    <p v-if="messages.length === 0" class="py-8 text-center text-xs text-muted-fg">No messages yet.</p>
+    <!-- Keyed on the timeline, not the messages: a thread can hold snapshot
+         records with no messages at all (an agent edit citing a conversation
+         nobody has spoken in), and "No messages yet." above a visible record
+         is the UI contradicting itself. -->
+    <p v-if="timeline.length === 0" class="py-8 text-center text-xs text-muted-fg">No messages yet.</p>
     <template v-for="(item, i) in timeline" :key="item.id">
       <template v-if="item.kind === 'message'">
         <div
