@@ -19,6 +19,7 @@ type Repository interface {
 	repo.Conversation
 	repo.Message
 	repo.Reference
+	repo.CardSnapshot
 	repo.Search
 	// RunV12Backfill applies the v0.12 auto-upgrade rule to every existing
 	// card once (based on prior conversation activity). Idempotent — cards
