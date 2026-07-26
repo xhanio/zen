@@ -69,9 +69,10 @@ frontend:
 # recurses until the stack blows (dash segfaults).
 .PHONY: dev
 dev: config build
-	@echo "==> starting zen-backend + Vite (Ctrl-C stops both)"
+	@echo "==> starting zen-backend + zen-mcp + Vite (Ctrl-C stops all)"
 	@trap 'trap "" TERM; trap - EXIT INT; kill 0; exit 0' EXIT INT TERM; \
 	  ( ./$(BACKEND_BIN) daemon -c $(BACKEND_CFG) ) & \
+	  ( ./$(MCP_BIN) daemon -c $(MCP_CFG) ) & \
 	  ( cd frontend && npm run dev ) & \
 	  wait
 
