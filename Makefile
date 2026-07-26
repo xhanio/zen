@@ -2,7 +2,7 @@
 #
 # Quick start (after `make deps` once):
 #
-#   make dev         # renders config + runs backend + Vite in one shot
+#   make dev         # renders config + runs backend + MCP + Vite in one shot
 #
 # Or run them in separate terminals:
 #
@@ -25,7 +25,7 @@ MCP_CFG     := dist/$(GOPRO_ENV)/config/zen-mcp/config.yaml
 help:
 	@echo "zen developer targets (GOPRO_ENV=$(GOPRO_ENV))"
 	@echo ""
-	@echo "  make dev            config + backend + Vite frontend in parallel (Ctrl-C stops both)"
+	@echo "  make dev            config + backend + zen-mcp + Vite in parallel (Ctrl-C stops all)"
 	@echo "  make backend        run zen-backend in the foreground"
 	@echo "  make mcp            run zen-mcp in the foreground"
 	@echo "  make frontend       run Vite dev server in the foreground"
@@ -62,9 +62,9 @@ mcp: config build
 frontend:
 	cd frontend && npm run dev
 
-# `make dev` runs backend + Vite together. The trap sends SIGTERM to the whole
-# process group on Ctrl-C / exit so both children die together — no orphan
-# backend left holding port 8080. `kill 0` also signals this shell, so the
+# `make dev` runs backend + zen-mcp + Vite together. The trap sends SIGTERM to the whole
+# process group on Ctrl-C / exit so all three children die together — no orphan
+# backend left holding port 8080 (or zen-mcp holding 8081). `kill 0` also signals this shell, so the
 # handler must disarm itself first: otherwise the TERM trap re-enters and
 # recurses until the stack blows (dash segfaults).
 .PHONY: dev

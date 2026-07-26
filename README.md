@@ -20,6 +20,9 @@ to reuse. Zen breaks it into **cards**:
   group.
 - Cards sit at an abstraction **level** within their group (principle → detail),
   and full-text **search** runs over everything via SQLite FTS5.
+- Every content change writes a **snapshot**, so a card keeps its history. A
+  change an agent made because of a chat shows up as a record in that
+  conversation, and clicking it renders the diff over the card.
 
 ## AI, over MCP — not inside Zen
 
@@ -83,11 +86,11 @@ The installer reads a few environment variables, all optional:
 | `ZEN_BIN_DIR` | `~/.local/bin` | put the `zen-channel` binary somewhere else on your `PATH` |
 | `ZEN_SHELL_RC` | per shell/OS | write the `claude` alias to a specific rc file |
 
-One separate variable, `ZEN_BACKEND_URL`, is read by the `zen-channel` binary at
-run time rather than by the installer — set it in your shell when Zen is
-published on a port other than 38000. It steers the channel connection only, not
-the `zen` MCP server URL pinned in the plugin's `.mcp.json`, so a non-default
-port takes more than this one variable; see
+Two more variables are read at run time rather than by the installer, and both
+matter when Zen is published on a port other than 38000: `ZEN_BACKEND_URL`
+steers the `zen-channel` connection, and `ZEN_MCP_URL` points the `zen` MCP
+server at the right endpoint. Set both, or the halves disagree — chat events
+arrive from one Zen while the card tools edit another. See
 [`plugins/zen/README.md`](plugins/zen/README.md).
 
 ## Develop
@@ -100,13 +103,15 @@ anything Zen-specific.
 
 ```bash
 make deps      # npm install in frontend/
-make dev       # zen-backend + Vite dev server together (Ctrl-C stops both)
+make dev       # zen-backend + zen-mcp + Vite dev server (Ctrl-C stops all)
 make test      # go test ./...  +  frontend vitest
 make help      # all targets
 ```
 
 `make dev` serves the SPA against a local backend on a `/tmp/zen-local.db`
-SQLite file; `make reset-db` wipes it to re-run migrations.
+SQLite file; `make reset-db` wipes it to re-run migrations. It also starts
+`zen-mcp` on `:8081`, so a Claude session can be pointed at the dev stack with
+`ZEN_BACKEND_URL` / `ZEN_MCP_URL` instead of your installed Zen.
 
 ## Architecture
 
