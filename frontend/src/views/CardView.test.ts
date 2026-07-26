@@ -16,6 +16,8 @@ vi.mock('../api/client', () => ({
   listChildren: vi.fn().mockResolvedValue([]),
   listConversations: vi.fn().mockResolvedValue({ conversations: [] }),
   getConversation: vi.fn().mockResolvedValue(null),
+  listSnapshots: vi.fn().mockResolvedValue({ snapshots: [] }),
+  getSnapshot: vi.fn(),
 }));
 
 const mockOpenForConversation = vi.fn().mockResolvedValue(undefined);

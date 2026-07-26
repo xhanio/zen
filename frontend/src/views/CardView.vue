@@ -2,7 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRenderedSections } from '../composables/useRenderedSections';
 import { storeToRefs } from 'pinia';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { useCardsStore } from '../stores/cards';
 import { useTagsStore } from '../stores/tags';
 import { useGroupsStore } from '../stores/groups';
@@ -27,6 +27,9 @@ import { levelColor } from '../utils/levelPalette';
 import { sortCatalog } from '../utils/levelCatalog';
 import CardReferencesPanel from '../components/CardReferencesPanel.vue';
 import SectionConversationChip from '../components/SectionConversationChip.vue';
+import SnapshotDiff from '../components/SnapshotDiff.vue';
+import CardSnapshotList from '../components/CardSnapshotList.vue';
+import { useSnapshotsStore } from '../stores/snapshots';
 
 const props = defineProps<{ cardId: string }>();
 
@@ -34,6 +37,8 @@ const contentRoot = ref<HTMLElement | null>(null);
 const selection = useSelectionBubble(contentRoot);
 
 const router = useRouter();
+const route = useRoute();
+const snapshotsStore = useSnapshotsStore();
 const cardsStore = useCardsStore();
 const tagsStore = useTagsStore();
 const sidebar = useChatSidebar();
@@ -43,6 +48,43 @@ const { byID, byChildren } = storeToRefs(cardsStore);
 const { showTrashedSections } = storeToRefs(tilePrefs);
 
 const allTagNames = computed(() => tagsStore.tags.map((t) => t.name));
+
+// Change view: ?snapshot=<id> replaces the card body with that snapshot's
+// diff. It is a view state, not a route of its own — clearing the query
+// returns to the live card, which is what makes the record row a toggle.
+const activeSnapshotID = computed<string | null>(() => {
+  // Optional chaining: the view is mounted without a router in component
+  // tests, and "no change view" is the right degradation there.
+  const q = route?.query?.snapshot;
+  return typeof q === 'string' && q !== '' ? q : null;
+});
+const snapshotDetail = computed(() => {
+  const detail = snapshotsStore.detail;
+  if (!detail || detail.snapshot.id !== activeSnapshotID.value) return null;
+  return detail;
+});
+
+watch(activeSnapshotID, (id) => {
+  if (!id) {
+    snapshotsStore.clearDetail();
+    return;
+  }
+  void snapshotsStore.loadDetail(id).catch(() => undefined);
+}, { immediate: true });
+
+function exitSnapshotView() {
+  const query = { ...(route?.query ?? {}) };
+  delete query.snapshot;
+  void router?.replace({ query });
+}
+
+function openSnapshot(id: string) {
+  if (activeSnapshotID.value === id) {
+    exitSnapshotView();
+    return;
+  }
+  void router?.replace({ query: { ...(route?.query ?? {}), snapshot: id } });
+}
 const tagsError = ref<string | null>(null);
 const savingTags = ref(false);
 
@@ -395,7 +437,26 @@ function onContentClick(event: MouseEvent) {
         @update="saveTags"
       />
     </div>
-    <div ref="contentRoot" class="mb-2 relative" @click="onContentClick">
+    <div v-if="snapshotDetail" data-test="snapshot-banner" class="mb-3 flex items-center gap-2 rounded border border-accent-border bg-accent-bg px-3 py-1.5 text-xs text-fg">
+      <span>◧ 正在看这一版带来的改动 ·
+        <strong v-if="snapshotDetail.snapshot.seq > 1">#{{ snapshotDetail.snapshot.seq - 1 }} → #{{ snapshotDetail.snapshot.seq }}</strong>
+        <strong v-else>#{{ snapshotDetail.snapshot.seq }}（基线）</strong>
+      </span>
+      <button
+        type="button"
+        data-test="snapshot-exit"
+        class="ml-auto rounded border border-border px-2 py-0.5 hover:bg-muted"
+        @click="exitSnapshotView"
+      >回到最新版 ✕</button>
+    </div>
+    <SnapshotDiff
+      v-if="snapshotDetail"
+      :diff="snapshotDetail.parsed"
+      :truncated="snapshotDetail.snapshot.diff_truncated"
+      :before="snapshotDetail.previous?.content ?? ''"
+      :after="snapshotDetail.snapshot.content"
+    />
+    <div v-show="!snapshotDetail" ref="contentRoot" class="mb-2 relative" @click="onContentClick">
       <!-- Every card view — leaf or container — sits inside the same
            outer skeleton: a legend row at the top, then a space-y-1
            wrapper holding one or more section shells. For leaves we
@@ -530,6 +591,9 @@ function onContentClick(event: MouseEvent) {
       </div>
     </div>
     <CardReferencesPanel v-if="hasReferences" :root-card="card" />
+    <aside class="flex h-full w-[260px] shrink-0 flex-col border-l border-border bg-surface px-3 py-2">
+      <CardSnapshotList :card-id="card.id" :active-id="activeSnapshotID" @open="openSnapshot" />
+    </aside>
   </div>
   <p v-else-if="cardsStore.loading" class="text-sm text-muted-fg">Loading…</p>
   <p v-else class="text-sm text-muted-fg">Card not found.</p>
