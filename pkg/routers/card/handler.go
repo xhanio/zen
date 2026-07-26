@@ -6,6 +6,7 @@ import (
 	"github.com/xhanio/errors"
 
 	"github.com/xhanio/zen/pkg/types/api"
+	"github.com/xhanio/zen/pkg/types/entity"
 )
 
 func (r *router) CreateCard(c api.Context) error {
@@ -21,6 +22,7 @@ func (r *router) CreateCard(c api.Context) error {
 		req.ParentCardID, req.SourceConversationID,
 		req.Format, req.LevelEntryID, req.Genesis,
 		req.Reference, req.Summary,
+		entity.SnapshotAttribution{},
 	)
 	if err != nil {
 		return errors.Wrap(err)
@@ -64,6 +66,7 @@ func (r *router) UpdateCard(c api.Context) error {
 		req.Position, req.Tags,
 		req.Format, req.LevelEntryID, req.ClearLevelEntry, req.Genesis,
 		req.Summary,
+		entity.SnapshotAttribution{},
 	)
 	if err != nil {
 		return errors.Wrap(err)
@@ -91,7 +94,7 @@ func (r *router) DecomposeCard(c api.Context) error {
 	if err := c.Validate(&req); err != nil {
 		return errors.BadRequest.Wrap(err)
 	}
-	resp, err := r.svc.Decompose(c, req)
+	resp, err := r.svc.Decompose(c, req, entity.SnapshotAttribution{})
 	if err != nil {
 		return errors.Wrap(err)
 	}

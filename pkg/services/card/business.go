@@ -9,9 +9,79 @@ import (
 
 	"github.com/xhanio/zen/pkg/types/api"
 	"github.com/xhanio/zen/pkg/types/entity"
+	"github.com/xhanio/zen/pkg/utils/carddiff"
 	"github.com/xhanio/zen/pkg/utils/htmltext"
 	"github.com/xhanio/zen/pkg/utils/ulidutil"
 )
+
+// writeSnapshot records the card's post-state. Call inside the mutation's
+// transaction, after the card row is written, so a failed mutation rolls the
+// snapshot back with it. before is the pre-mutation state; pass a zero Fields
+// for a baseline, which has nothing to diff against.
+func (m *manager) writeSnapshot(
+	txCtx context.Context,
+	card *entity.Card,
+	before carddiff.Fields,
+	changeKind string,
+	attr entity.SnapshotAttribution,
+) error {
+	seq, err := m.repo.NextSnapshotSeq(txCtx, card.ID)
+	if err != nil {
+		return errors.Wrap(err)
+	}
+	after := carddiff.Fields{
+		Title: card.Title, Summary: card.Summary,
+		Content: card.Content, Format: card.Format,
+	}
+	var (
+		raw       string
+		truncated bool
+		added     int
+		removed   int
+	)
+	if changeKind != changeKindCreate && changeKind != changeKindBaseline {
+		raw, truncated, added, removed = carddiff.Compute(before, after)
+	}
+	return errors.Wrap(m.repo.CreateCardSnapshot(txCtx, &entity.CardSnapshot{
+		ID:             ulidutil.New(),
+		CardID:         card.ID,
+		Seq:            seq,
+		Title:          card.Title,
+		Summary:        card.Summary,
+		Content:        card.Content,
+		Format:         card.Format,
+		Actor:          attr.ActorOrDefault(),
+		ConversationID: attr.ConversationID,
+		ChangeKind:     changeKind,
+		Diff:           raw,
+		DiffTruncated:  truncated,
+		LinesAdded:     added,
+		LinesRemoved:   removed,
+		CreatedAt:      time.Now(),
+	}))
+}
+
+const (
+	changeKindCreate    = "create"
+	changeKindUpdate    = "update"
+	changeKindDecompose = "decompose"
+	changeKindBaseline  = "baseline"
+)
+
+// snapshotFields captures the four fields a snapshot tracks.
+func snapshotFields(c *entity.Card) carddiff.Fields {
+	return carddiff.Fields{
+		Title: c.Title, Summary: c.Summary,
+		Content: c.Content, Format: c.Format,
+	}
+}
+
+// contentChanged reports whether a snapshot is warranted. Tag, position,
+// level, group, and grade changes are deliberately excluded: they do not
+// change what the card says, and tag writes cascade to every descendant.
+func contentChanged(before carddiff.Fields, card *entity.Card) bool {
+	return before != snapshotFields(card)
+}
 
 const (
 	maxTitleLen   = 200
@@ -31,7 +101,7 @@ func validateSummary(s string) (string, error) {
 	return s, nil
 }
 
-func (m *manager) Create(ctx context.Context, title, content, groupID string, tagNames []string, parentCardID, sourceConversationID *string, format *string, levelEntryID *string, genesis *string, reference *api.ReferenceSpec, summary *string) (*entity.Card, error) {
+func (m *manager) Create(ctx context.Context, title, content, groupID string, tagNames []string, parentCardID, sourceConversationID *string, format *string, levelEntryID *string, genesis *string, reference *api.ReferenceSpec, summary *string, attr entity.SnapshotAttribution) (*entity.Card, error) {
 	if reference != nil {
 		if parentCardID == nil {
 			return nil, errors.BadRequest.Newf("reference requires parent_card_id")
@@ -150,6 +220,11 @@ func (m *manager) Create(ctx context.Context, title, content, groupID string, ta
 				return errors.Wrap(err)
 			}
 		}
+		// Create does not delegate to createInTx — the two creation paths are
+		// separate — so the baseline has to be written here as well.
+		if err := m.writeSnapshot(txCtx, card, carddiff.Fields{}, changeKindCreate, attr); err != nil {
+			return errors.Wrap(err)
+		}
 		return nil
 	})
 	if err != nil {
@@ -246,7 +321,7 @@ func (m *manager) Children(ctx context.Context, parentID string, includeTrashed 
 	return cards, nil
 }
 
-func (m *manager) Update(ctx context.Context, id string, title, content, groupID *string, position *int, tagNames *[]string, format *string, levelEntryID *string, clearLevelEntry bool, genesis *string, summary *string) (*entity.Card, error) {
+func (m *manager) Update(ctx context.Context, id string, title, content, groupID *string, position *int, tagNames *[]string, format *string, levelEntryID *string, clearLevelEntry bool, genesis *string, summary *string, attr entity.SnapshotAttribution) (*entity.Card, error) {
 	if err := ulidutil.Parse(id); err != nil {
 		return nil, errors.Wrap(err)
 	}
@@ -257,6 +332,9 @@ func (m *manager) Update(ctx context.Context, id string, title, content, groupID
 		if err != nil {
 			return errors.Wrap(err)
 		}
+		// Capture the pre-mutation state before any field is touched; the
+		// snapshot below diffs against it.
+		before := snapshotFields(card)
 		if title != nil {
 			trimmed := strings.TrimSpace(*title)
 			if trimmed == "" {
@@ -326,6 +404,11 @@ func (m *manager) Update(ctx context.Context, id string, title, content, groupID
 		}
 		if err := m.repo.UpdateCard(txCtx, card); err != nil {
 			return errors.Wrap(err)
+		}
+		if contentChanged(before, card) {
+			if err := m.writeSnapshot(txCtx, card, before, changeKindUpdate, attr); err != nil {
+				return errors.Wrap(err)
+			}
 		}
 		if groupChanged {
 			// Re-home the card's tags into the destination group by name: the
@@ -466,6 +549,11 @@ func (m *manager) Purge(ctx context.Context, id string) error {
 		if err := m.repo.DeleteReferencesForCard(txCtx, id); err != nil {
 			return errors.Wrap(err)
 		}
+		// Same story for snapshots: the cascade in the schema is inert in
+		// production, so the rows must be dropped explicitly.
+		if err := m.repo.DeleteSnapshotsForCard(txCtx, id); err != nil {
+			return errors.Wrap(err)
+		}
 		return errors.Wrap(m.repo.PurgeCard(txCtx, id))
 	})
 }
@@ -477,6 +565,9 @@ func (m *manager) EmptyTrash(ctx context.Context) (int, error) {
 	err := m.repo.Transaction(ctx, func(txCtx context.Context) error {
 		// Same reason as Purge: drop dangling references before the cards go.
 		if err := m.repo.DeleteReferencesForTrashedCards(txCtx); err != nil {
+			return errors.Wrap(err)
+		}
+		if err := m.repo.DeleteSnapshotsForTrashedCards(txCtx); err != nil {
 			return errors.Wrap(err)
 		}
 		var perr error
@@ -507,7 +598,7 @@ func (m *manager) Trash(ctx context.Context, limit int) ([]*entity.Card, error) 
 	return cards, nil
 }
 
-func (m *manager) Decompose(ctx context.Context, req api.DecomposeRequest) (*api.DecomposeResponse, error) {
+func (m *manager) Decompose(ctx context.Context, req api.DecomposeRequest, attr entity.SnapshotAttribution) (*api.DecomposeResponse, error) {
 	if err := ulidutil.Parse(req.ParentCardID); err != nil {
 		return nil, errors.Wrap(err)
 	}
@@ -568,7 +659,7 @@ func (m *manager) Decompose(ctx context.Context, req api.DecomposeRequest) (*api
 			content := htmltext.StripLeadingHeading(spec.Content, f, spec.Title)
 			child, err := m.createInTx(txCtx, spec.Title, content, groupID,
 				spec.Tags, &parentRef, nil,
-				&f, spec.LevelEntryID, &gen, spec.Summary,
+				&f, spec.LevelEntryID, &gen, spec.Summary, attr,
 			)
 			if err != nil {
 				return errors.Wrapf(err, "card %d", i)
@@ -585,11 +676,17 @@ func (m *manager) Decompose(ctx context.Context, req api.DecomposeRequest) (*api
 			}
 			created = append(created, child)
 		}
+		// The parent's body is about to be cleared into its children. This is
+		// the only path that destroys prose with no trace, so snapshot it.
+		beforeParent := snapshotFields(parent)
 		parent.Content = ""
 		if req.ContainerContent != nil {
 			parent.Content = *req.ContainerContent
 		}
 		if err := m.repo.UpdateCard(txCtx, parent); err != nil {
+			return errors.Wrap(err)
+		}
+		if err := m.writeSnapshot(txCtx, parent, beforeParent, changeKindDecompose, attr); err != nil {
 			return errors.Wrap(err)
 		}
 		return nil
@@ -636,7 +733,7 @@ func (m *manager) Compose(ctx context.Context, req api.ComposeRequest) (*api.Com
 
 		created, err := m.createInTx(txCtx, spec.Title, spec.Content, groupID,
 			spec.Tags, nil, nil,
-			format, spec.LevelEntryID, &gen, spec.Summary,
+			format, spec.LevelEntryID, &gen, spec.Summary, entity.SnapshotAttribution{},
 		)
 		if err != nil {
 			return errors.Wrap(err)
@@ -702,7 +799,7 @@ func idsUnique(ids []string) bool {
 // createInTx runs repo.CreateCard + tag attachment inside an existing
 // transaction. Returns the created card. Validates level_entry_id (when
 // non-nil) against the target group's catalog.
-func (m *manager) createInTx(txCtx context.Context, title, content, groupID string, tagNames []string, parentCardID, sourceConversationID *string, format *string, levelEntryID *string, genesis *string, summary *string) (*entity.Card, error) {
+func (m *manager) createInTx(txCtx context.Context, title, content, groupID string, tagNames []string, parentCardID, sourceConversationID *string, format *string, levelEntryID *string, genesis *string, summary *string, attr entity.SnapshotAttribution) (*entity.Card, error) {
 	title = strings.TrimSpace(title)
 	if title == "" {
 		return nil, errors.BadRequest.Newf("card title is required")
@@ -773,6 +870,9 @@ func (m *manager) createInTx(txCtx context.Context, title, content, groupID stri
 			return nil, errors.Wrap(err)
 		}
 		card.Tags = append(card.Tags, tag.Name)
+	}
+	if err := m.writeSnapshot(txCtx, card, carddiff.Fields{}, changeKindCreate, attr); err != nil {
+		return nil, errors.Wrap(err)
 	}
 	return card, nil
 }

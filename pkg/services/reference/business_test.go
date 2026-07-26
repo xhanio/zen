@@ -28,11 +28,11 @@ func newRefSvc(t *testing.T) (svc model.Reference, src, der, conv string) {
 	tagSvc := tag.New(repo)
 	cardSvc := card.New(repo, tagSvc, nil)
 	convSvc := conversation.New(repo)
-	a, err := cardSvc.Create(ctx, "a", "x", g.ID, nil, nil, nil, nil, nil, nil, nil, nil)
+	a, err := cardSvc.Create(ctx, "a", "x", g.ID, nil, nil, nil, nil, nil, nil, nil, nil, entity.SnapshotAttribution{})
 	if err != nil {
 		t.Fatalf("cardSvc.Create a: %v", err)
 	}
-	b, err := cardSvc.Create(ctx, "b", "y", g.ID, nil, nil, nil, nil, nil, nil, nil, nil)
+	b, err := cardSvc.Create(ctx, "b", "y", g.ID, nil, nil, nil, nil, nil, nil, nil, nil, entity.SnapshotAttribution{})
 	if err != nil {
 		t.Fatalf("cardSvc.Create b: %v", err)
 	}

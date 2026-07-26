@@ -104,7 +104,7 @@ func TestCascade_EnsuresTagInDescendantGroup(t *testing.T) {
 	}
 
 	// Add "reviewed" to the container → cascades to the child, ensured in B.
-	if _, err := svc.Update(ctx, container.ID, nil, nil, nil, nil, &[]string{"reviewed"}, nil, nil, false, nil, nil); err != nil {
+	if _, err := svc.Update(ctx, container.ID, nil, nil, nil, nil, &[]string{"reviewed"}, nil, nil, false, nil, nil, entity.SnapshotAttribution{}); err != nil {
 		t.Fatalf("update: %v", err)
 	}
 	if got := mustGetTags(t, repo, child.ID); !equalStringSlices(got, []string{"reviewed"}) {
@@ -120,7 +120,7 @@ func TestUpdateTags_CascadesAddedTagsToDescendants(t *testing.T) {
 	ctx := context.Background()
 	tags := []string{"v0.12", "review"}
 	if _, err := c.svc.Update(ctx, c.containerID,
-		nil, nil, nil, nil, &tags, nil, nil, false, nil, nil); err != nil {
+		nil, nil, nil, nil, &tags, nil, nil, false, nil, nil, entity.SnapshotAttribution{}); err != nil {
 		t.Fatalf("Update: %v", err)
 	}
 	if got := mustGetTags(t, c.repo, c.containerID); !equalStringSlices(got, []string{"review", "v0.12"}) {
@@ -140,13 +140,13 @@ func TestUpdateTags_RemovalDoesNotCascade(t *testing.T) {
 	// First cascade both tags down.
 	both := []string{"v0.12", "review"}
 	if _, err := c.svc.Update(ctx, c.containerID,
-		nil, nil, nil, nil, &both, nil, nil, false, nil, nil); err != nil {
+		nil, nil, nil, nil, &both, nil, nil, false, nil, nil, entity.SnapshotAttribution{}); err != nil {
 		t.Fatalf("Update 1: %v", err)
 	}
 	// Now drop "review" from the container only.
 	trimmed := []string{"v0.12"}
 	if _, err := c.svc.Update(ctx, c.containerID,
-		nil, nil, nil, nil, &trimmed, nil, nil, false, nil, nil); err != nil {
+		nil, nil, nil, nil, &trimmed, nil, nil, false, nil, nil, entity.SnapshotAttribution{}); err != nil {
 		t.Fatalf("Update 2: %v", err)
 	}
 	if got := mustGetTags(t, c.repo, c.containerID); !equalStringSlices(got, []string{"v0.12"}) {
@@ -164,13 +164,13 @@ func TestUpdateTags_IdempotentOnDescendantsThatAlreadyHaveTag(t *testing.T) {
 	// Pre-tag child A with "v0.12" directly.
 	pre := []string{"v0.12"}
 	if _, err := c.svc.Update(ctx, c.childAID,
-		nil, nil, nil, nil, &pre, nil, nil, false, nil, nil); err != nil {
+		nil, nil, nil, nil, &pre, nil, nil, false, nil, nil, entity.SnapshotAttribution{}); err != nil {
 		t.Fatalf("Update childA: %v", err)
 	}
 	// Now cascade "v0.12" + "review" from the container.
 	both := []string{"v0.12", "review"}
 	if _, err := c.svc.Update(ctx, c.containerID,
-		nil, nil, nil, nil, &both, nil, nil, false, nil, nil); err != nil {
+		nil, nil, nil, nil, &both, nil, nil, false, nil, nil, entity.SnapshotAttribution{}); err != nil {
 		t.Fatalf("Update container: %v", err)
 	}
 	if got := mustGetTags(t, c.repo, c.childAID); !equalStringSlices(got, []string{"review", "v0.12"}) {
@@ -183,7 +183,7 @@ func TestUpdateTags_LeafHasNoDescendantsSoNoCascade(t *testing.T) {
 	ctx := context.Background()
 	tags := []string{"leafy"}
 	if _, err := c.svc.Update(ctx, c.childAID,
-		nil, nil, nil, nil, &tags, nil, nil, false, nil, nil); err != nil {
+		nil, nil, nil, nil, &tags, nil, nil, false, nil, nil, entity.SnapshotAttribution{}); err != nil {
 		t.Fatalf("Update leaf: %v", err)
 	}
 	// Sibling child B unaffected.

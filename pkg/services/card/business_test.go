@@ -2,8 +2,8 @@ package card_test
 
 import (
 	"context"
-	"testing"
 	"strings"
+	"testing"
 	"time"
 
 	"github.com/xhanio/errors"
@@ -43,13 +43,13 @@ func TestUpdate_GroupMove_ClearsLevelAndRehomesTags(t *testing.T) {
 	entryID := gA.LevelCatalog[0].ID
 
 	// card in A, leveled + tagged
-	card, err := svc.Create(ctx, "c", "", gA.ID, []string{"draft"}, nil, nil, nil, &entryID, nil, nil, nil)
+	card, err := svc.Create(ctx, "c", "", gA.ID, []string{"draft"}, nil, nil, nil, &entryID, nil, nil, nil, entity.SnapshotAttribution{})
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
 
 	// move to B
-	moved, err := svc.Update(ctx, card.ID, nil, nil, &gB.ID, nil, nil, nil, nil, false, nil, nil)
+	moved, err := svc.Update(ctx, card.ID, nil, nil, &gB.ID, nil, nil, nil, nil, false, nil, nil, entity.SnapshotAttribution{})
 	if err != nil {
 		t.Fatalf("move: %v", err)
 	}
@@ -94,7 +94,7 @@ func TestUpdate_GroupMove_ClearsLevelAndRehomesTags(t *testing.T) {
 
 func TestCard_Create_NoTags(t *testing.T) {
 	svc, _, groupID := newCardCtx(t)
-	c, err := svc.Create(context.Background(), "first", "body", groupID, nil, nil, nil, nil, nil, nil, nil, nil)
+	c, err := svc.Create(context.Background(), "first", "body", groupID, nil, nil, nil, nil, nil, nil, nil, nil, entity.SnapshotAttribution{})
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -111,7 +111,7 @@ func TestCard_Create_NoTags(t *testing.T) {
 
 func TestCard_Create_WithTags(t *testing.T) {
 	svc, _, groupID := newCardCtx(t)
-	c, err := svc.Create(context.Background(), "polyglot", "", groupID, []string{"Go", "RUST"}, nil, nil, nil, nil, nil, nil, nil)
+	c, err := svc.Create(context.Background(), "polyglot", "", groupID, []string{"Go", "RUST"}, nil, nil, nil, nil, nil, nil, nil, entity.SnapshotAttribution{})
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -122,16 +122,15 @@ func TestCard_Create_WithTags(t *testing.T) {
 
 func TestCard_Create_MissingGroup(t *testing.T) {
 	svc, _, _ := newCardCtx(t)
-	_, err := svc.Create(context.Background(), "x", "", ulidutil.New(), nil, nil, nil, nil, nil, nil, nil, nil)
+	_, err := svc.Create(context.Background(), "x", "", ulidutil.New(), nil, nil, nil, nil, nil, nil, nil, nil, entity.SnapshotAttribution{})
 	if !errors.Is(err, errors.NotFound) {
 		t.Fatalf("expected NotFound, got: %v", err)
 	}
 }
 
-
 func TestCard_Get_LoadsTags(t *testing.T) {
 	svc, _, groupID := newCardCtx(t)
-	created, _ := svc.Create(context.Background(), "x", "", groupID, []string{"go"}, nil, nil, nil, nil, nil, nil, nil)
+	created, _ := svc.Create(context.Background(), "x", "", groupID, []string{"go"}, nil, nil, nil, nil, nil, nil, nil, entity.SnapshotAttribution{})
 	got, err := svc.Get(context.Background(), created.ID)
 	if err != nil {
 		t.Fatalf("Get: %v", err)
@@ -143,7 +142,7 @@ func TestCard_Get_LoadsTags(t *testing.T) {
 
 func TestCard_Create_WithProvenance(t *testing.T) {
 	svc, repo, groupID := newCardCtx(t)
-	parent, err := svc.Create(context.Background(), "parent", "", groupID, nil, nil, nil, nil, nil, nil, nil, nil)
+	parent, err := svc.Create(context.Background(), "parent", "", groupID, nil, nil, nil, nil, nil, nil, nil, nil, entity.SnapshotAttribution{})
 	if err != nil {
 		t.Fatalf("create parent: %v", err)
 	}
@@ -156,7 +155,7 @@ func TestCard_Create_WithProvenance(t *testing.T) {
 	if err := repo.CreateConversation(context.Background(), conv); err != nil {
 		t.Fatalf("create conv: %v", err)
 	}
-	c, err := svc.Create(context.Background(), "derived", "from chat", groupID, nil, &parent.ID, &conv.ID, nil, nil, nil, nil, nil)
+	c, err := svc.Create(context.Background(), "derived", "from chat", groupID, nil, &parent.ID, &conv.ID, nil, nil, nil, nil, nil, entity.SnapshotAttribution{})
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -170,7 +169,7 @@ func TestCard_Create_WithProvenance(t *testing.T) {
 
 func TestCard_Delete_SoftDeletes(t *testing.T) {
 	svc, _, groupID := newCardCtx(t)
-	c, _ := svc.Create(context.Background(), "x", "", groupID, nil, nil, nil, nil, nil, nil, nil, nil)
+	c, _ := svc.Create(context.Background(), "x", "", groupID, nil, nil, nil, nil, nil, nil, nil, nil, entity.SnapshotAttribution{})
 	if err := svc.Delete(context.Background(), c.ID, true); err != nil {
 		t.Fatalf("Delete: %v", err)
 	}
@@ -185,9 +184,9 @@ func TestCard_Delete_SoftDeletes(t *testing.T) {
 
 func TestCard_Update_RetainsTags(t *testing.T) {
 	svc, _, groupID := newCardCtx(t)
-	c, _ := svc.Create(context.Background(), "old", "", groupID, []string{"go"}, nil, nil, nil, nil, nil, nil, nil)
+	c, _ := svc.Create(context.Background(), "old", "", groupID, []string{"go"}, nil, nil, nil, nil, nil, nil, nil, entity.SnapshotAttribution{})
 	newTitle := "new"
-	updated, err := svc.Update(context.Background(), c.ID, &newTitle, nil, nil, nil, nil, nil, nil, false, nil, nil)
+	updated, err := svc.Update(context.Background(), c.ID, &newTitle, nil, nil, nil, nil, nil, nil, false, nil, nil, entity.SnapshotAttribution{})
 	if err != nil {
 		t.Fatalf("Update: %v", err)
 	}
@@ -201,12 +200,12 @@ func TestCard_Update_RetainsTags(t *testing.T) {
 
 func TestCard_Update_AddsTags(t *testing.T) {
 	svc, _, groupID := newCardCtx(t)
-	created, err := svc.Create(context.Background(), "T", "", groupID, nil, nil, nil, nil, nil, nil, nil, nil)
+	created, err := svc.Create(context.Background(), "T", "", groupID, nil, nil, nil, nil, nil, nil, nil, nil, entity.SnapshotAttribution{})
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
 	tags := []string{"alpha", "beta"}
-	updated, err := svc.Update(context.Background(), created.ID, nil, nil, nil, nil, &tags, nil, nil, false, nil, nil)
+	updated, err := svc.Update(context.Background(), created.ID, nil, nil, nil, nil, &tags, nil, nil, false, nil, nil, entity.SnapshotAttribution{})
 	if err != nil {
 		t.Fatalf("Update: %v", err)
 	}
@@ -221,12 +220,12 @@ func TestCard_Update_AddsTags(t *testing.T) {
 
 func TestCard_Update_RemovesTags(t *testing.T) {
 	svc, _, groupID := newCardCtx(t)
-	created, err := svc.Create(context.Background(), "T", "", groupID, []string{"keep", "drop"}, nil, nil, nil, nil, nil, nil, nil)
+	created, err := svc.Create(context.Background(), "T", "", groupID, []string{"keep", "drop"}, nil, nil, nil, nil, nil, nil, nil, entity.SnapshotAttribution{})
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
 	tags := []string{"keep"}
-	updated, err := svc.Update(context.Background(), created.ID, nil, nil, nil, nil, &tags, nil, nil, false, nil, nil)
+	updated, err := svc.Update(context.Background(), created.ID, nil, nil, nil, nil, &tags, nil, nil, false, nil, nil, entity.SnapshotAttribution{})
 	if err != nil {
 		t.Fatalf("Update: %v", err)
 	}
@@ -237,12 +236,12 @@ func TestCard_Update_RemovesTags(t *testing.T) {
 
 func TestCard_Update_EmptyTagsRemovesAll(t *testing.T) {
 	svc, _, groupID := newCardCtx(t)
-	created, err := svc.Create(context.Background(), "T", "", groupID, []string{"a", "b"}, nil, nil, nil, nil, nil, nil, nil)
+	created, err := svc.Create(context.Background(), "T", "", groupID, []string{"a", "b"}, nil, nil, nil, nil, nil, nil, nil, entity.SnapshotAttribution{})
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
 	empty := []string{}
-	updated, err := svc.Update(context.Background(), created.ID, nil, nil, nil, nil, &empty, nil, nil, false, nil, nil)
+	updated, err := svc.Update(context.Background(), created.ID, nil, nil, nil, nil, &empty, nil, nil, false, nil, nil, entity.SnapshotAttribution{})
 	if err != nil {
 		t.Fatalf("Update: %v", err)
 	}
@@ -253,12 +252,12 @@ func TestCard_Update_EmptyTagsRemovesAll(t *testing.T) {
 
 func TestCard_Update_NilTagsLeavesUnchanged(t *testing.T) {
 	svc, _, groupID := newCardCtx(t)
-	created, err := svc.Create(context.Background(), "T", "", groupID, []string{"keep1", "keep2"}, nil, nil, nil, nil, nil, nil, nil)
+	created, err := svc.Create(context.Background(), "T", "", groupID, []string{"keep1", "keep2"}, nil, nil, nil, nil, nil, nil, nil, entity.SnapshotAttribution{})
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
 	newTitle := "T2"
-	updated, err := svc.Update(context.Background(), created.ID, &newTitle, nil, nil, nil, nil, nil, nil, false, nil, nil)
+	updated, err := svc.Update(context.Background(), created.ID, &newTitle, nil, nil, nil, nil, nil, nil, false, nil, nil, entity.SnapshotAttribution{})
 	if err != nil {
 		t.Fatalf("Update: %v", err)
 	}
@@ -284,7 +283,7 @@ func TestCard_Purge_CascadesAnchoredConversations(t *testing.T) {
 	svc := card.New(repo, tag.New(repo), conv)
 	ctx := context.Background()
 
-	c, err := svc.Create(ctx, "x", "", g.ID, nil, nil, nil, nil, nil, nil, nil, nil)
+	c, err := svc.Create(ctx, "x", "", g.ID, nil, nil, nil, nil, nil, nil, nil, nil, entity.SnapshotAttribution{})
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -306,7 +305,7 @@ func TestCard_Purge_CascadesAnchoredConversations(t *testing.T) {
 
 func TestCard_Create_DefaultsToMarkdown(t *testing.T) {
 	svc, _, groupID := newCardCtx(t)
-	c, err := svc.Create(context.Background(), "x", "hello", groupID, nil, nil, nil, nil, nil, nil, nil, nil)
+	c, err := svc.Create(context.Background(), "x", "hello", groupID, nil, nil, nil, nil, nil, nil, nil, nil, entity.SnapshotAttribution{})
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -318,7 +317,7 @@ func TestCard_Create_DefaultsToMarkdown(t *testing.T) {
 func TestCard_Create_AcceptsHtml(t *testing.T) {
 	svc, _, groupID := newCardCtx(t)
 	f := "html"
-	c, err := svc.Create(context.Background(), "x", "<p>hi</p>", groupID, nil, nil, nil, &f, nil, nil, nil, nil)
+	c, err := svc.Create(context.Background(), "x", "<p>hi</p>", groupID, nil, nil, nil, &f, nil, nil, nil, nil, entity.SnapshotAttribution{})
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -330,7 +329,7 @@ func TestCard_Create_AcceptsHtml(t *testing.T) {
 func TestCard_Create_RejectsUnknownFormat(t *testing.T) {
 	svc, _, groupID := newCardCtx(t)
 	f := "bbcode"
-	_, err := svc.Create(context.Background(), "x", "", groupID, nil, nil, nil, &f, nil, nil, nil, nil)
+	_, err := svc.Create(context.Background(), "x", "", groupID, nil, nil, nil, &f, nil, nil, nil, nil, entity.SnapshotAttribution{})
 	if !errors.Is(err, errors.BadRequest) {
 		t.Fatalf("expected BadRequest, got %v", err)
 	}
@@ -348,7 +347,7 @@ func TestCard_Create_AttachesToKnownEntry(t *testing.T) {
 		t.Fatalf("seed catalog: %v", err)
 	}
 
-	c, err := svc.Create(context.Background(), "x", "hi", groupID, nil, nil, nil, nil, &entryID, nil, nil, nil)
+	c, err := svc.Create(context.Background(), "x", "hi", groupID, nil, nil, nil, nil, &entryID, nil, nil, nil, entity.SnapshotAttribution{})
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -360,7 +359,7 @@ func TestCard_Create_AttachesToKnownEntry(t *testing.T) {
 func TestCard_Create_RejectsUnknownEntry(t *testing.T) {
 	svc, _, groupID := newCardCtx(t)
 	unknown := ulidutil.New()
-	_, err := svc.Create(context.Background(), "x", "", groupID, nil, nil, nil, nil, &unknown, nil, nil, nil)
+	_, err := svc.Create(context.Background(), "x", "", groupID, nil, nil, nil, nil, &unknown, nil, nil, nil, entity.SnapshotAttribution{})
 	if !errors.Is(err, errors.BadRequest) {
 		t.Fatalf("expected BadRequest, got %v", err)
 	}
@@ -374,8 +373,8 @@ func TestCard_Update_ClearLevelEntry(t *testing.T) {
 	if err := repo.UpdateGroup(context.Background(), g); err != nil {
 		t.Fatalf("seed catalog: %v", err)
 	}
-	c, _ := svc.Create(context.Background(), "a", "", groupID, nil, nil, nil, nil, &entryID, nil, nil, nil)
-	got, err := svc.Update(context.Background(), c.ID, nil, nil, nil, nil, nil, nil, nil, true, nil, nil)
+	c, _ := svc.Create(context.Background(), "a", "", groupID, nil, nil, nil, nil, &entryID, nil, nil, nil, entity.SnapshotAttribution{})
+	got, err := svc.Update(context.Background(), c.ID, nil, nil, nil, nil, nil, nil, nil, true, nil, nil, entity.SnapshotAttribution{})
 	if err != nil {
 		t.Fatalf("Update: %v", err)
 	}
@@ -387,8 +386,8 @@ func TestCard_Update_ClearLevelEntry(t *testing.T) {
 func TestCard_Compose_SoftDeletesSourcesAndCreatesTarget(t *testing.T) {
 	svc, _, groupID := newCardCtx(t)
 	ctx := context.Background()
-	a, _ := svc.Create(ctx, "A", "alpha", groupID, nil, nil, nil, nil, nil, nil, nil, nil)
-	b, _ := svc.Create(ctx, "B", "beta", groupID, nil, nil, nil, nil, nil, nil, nil, nil)
+	a, _ := svc.Create(ctx, "A", "alpha", groupID, nil, nil, nil, nil, nil, nil, nil, nil, entity.SnapshotAttribution{})
+	b, _ := svc.Create(ctx, "B", "beta", groupID, nil, nil, nil, nil, nil, nil, nil, nil, entity.SnapshotAttribution{})
 
 	gid := groupID
 	resp, err := svc.Compose(ctx, api.ComposeRequest{
@@ -419,7 +418,7 @@ func TestCard_Compose_SoftDeletesSourcesAndCreatesTarget(t *testing.T) {
 func TestCard_Compose_RejectsLessThan2Sources(t *testing.T) {
 	svc, _, groupID := newCardCtx(t)
 	ctx := context.Background()
-	a, _ := svc.Create(ctx, "A", "alpha", groupID, nil, nil, nil, nil, nil, nil, nil, nil)
+	a, _ := svc.Create(ctx, "A", "alpha", groupID, nil, nil, nil, nil, nil, nil, nil, nil, entity.SnapshotAttribution{})
 
 	_, err := svc.Compose(ctx, api.ComposeRequest{
 		SourceCardIDs: []string{a.ID},
@@ -433,7 +432,7 @@ func TestCard_Compose_RejectsLessThan2Sources(t *testing.T) {
 func TestCard_Compose_RejectsDuplicateSourceIDs(t *testing.T) {
 	svc, _, groupID := newCardCtx(t)
 	ctx := context.Background()
-	a, _ := svc.Create(ctx, "A", "alpha", groupID, nil, nil, nil, nil, nil, nil, nil, nil)
+	a, _ := svc.Create(ctx, "A", "alpha", groupID, nil, nil, nil, nil, nil, nil, nil, nil, entity.SnapshotAttribution{})
 
 	_, err := svc.Compose(ctx, api.ComposeRequest{
 		SourceCardIDs: []string{a.ID, a.ID},
@@ -447,8 +446,8 @@ func TestCard_Compose_RejectsDuplicateSourceIDs(t *testing.T) {
 func TestCard_Compose_RejectsAlreadySoftDeletedSource(t *testing.T) {
 	svc, _, groupID := newCardCtx(t)
 	ctx := context.Background()
-	a, _ := svc.Create(ctx, "A", "alpha", groupID, nil, nil, nil, nil, nil, nil, nil, nil)
-	b, _ := svc.Create(ctx, "B", "beta", groupID, nil, nil, nil, nil, nil, nil, nil, nil)
+	a, _ := svc.Create(ctx, "A", "alpha", groupID, nil, nil, nil, nil, nil, nil, nil, nil, entity.SnapshotAttribution{})
+	b, _ := svc.Create(ctx, "B", "beta", groupID, nil, nil, nil, nil, nil, nil, nil, nil, entity.SnapshotAttribution{})
 	if err := svc.Delete(ctx, a.ID, true); err != nil {
 		t.Fatalf("Delete: %v", err)
 	}
@@ -469,8 +468,8 @@ func TestCard_Compose_RejectsCrossGroupSources(t *testing.T) {
 	if err := repo.CreateGroup(ctx, g2); err != nil {
 		t.Fatalf("CreateGroup: %v", err)
 	}
-	a, _ := svc.Create(ctx, "A", "alpha", groupID, nil, nil, nil, nil, nil, nil, nil, nil)
-	b, _ := svc.Create(ctx, "B", "beta", g2.ID, nil, nil, nil, nil, nil, nil, nil, nil)
+	a, _ := svc.Create(ctx, "A", "alpha", groupID, nil, nil, nil, nil, nil, nil, nil, nil, entity.SnapshotAttribution{})
+	b, _ := svc.Create(ctx, "B", "beta", g2.ID, nil, nil, nil, nil, nil, nil, nil, nil, entity.SnapshotAttribution{})
 
 	_, err := svc.Compose(ctx, api.ComposeRequest{
 		SourceCardIDs: []string{a.ID, b.ID},
@@ -484,8 +483,8 @@ func TestCard_Compose_RejectsCrossGroupSources(t *testing.T) {
 func TestCard_Compose_DefaultsGenesisToComposedFromTitles(t *testing.T) {
 	svc, _, groupID := newCardCtx(t)
 	ctx := context.Background()
-	a, _ := svc.Create(ctx, "A", "alpha", groupID, nil, nil, nil, nil, nil, nil, nil, nil)
-	b, _ := svc.Create(ctx, "B", "beta", groupID, nil, nil, nil, nil, nil, nil, nil, nil)
+	a, _ := svc.Create(ctx, "A", "alpha", groupID, nil, nil, nil, nil, nil, nil, nil, nil, entity.SnapshotAttribution{})
+	b, _ := svc.Create(ctx, "B", "beta", groupID, nil, nil, nil, nil, nil, nil, nil, nil, entity.SnapshotAttribution{})
 
 	resp, err := svc.Compose(ctx, api.ComposeRequest{
 		SourceCardIDs: []string{a.ID, b.ID},
@@ -505,8 +504,8 @@ func TestCard_Compose_DefaultsGenesisToComposedFromTitles(t *testing.T) {
 func TestCard_Compose_AllowsTargetGenesisOverride(t *testing.T) {
 	svc, _, groupID := newCardCtx(t)
 	ctx := context.Background()
-	a, _ := svc.Create(ctx, "A", "alpha", groupID, nil, nil, nil, nil, nil, nil, nil, nil)
-	b, _ := svc.Create(ctx, "B", "beta", groupID, nil, nil, nil, nil, nil, nil, nil, nil)
+	a, _ := svc.Create(ctx, "A", "alpha", groupID, nil, nil, nil, nil, nil, nil, nil, nil, entity.SnapshotAttribution{})
+	b, _ := svc.Create(ctx, "B", "beta", groupID, nil, nil, nil, nil, nil, nil, nil, nil, entity.SnapshotAttribution{})
 
 	gen := "custom provenance"
 	resp, err := svc.Compose(ctx, api.ComposeRequest{
@@ -528,8 +527,8 @@ func TestCard_Compose_AllowsTargetGroupOverride(t *testing.T) {
 	if err := repo.CreateGroup(ctx, g2); err != nil {
 		t.Fatalf("CreateGroup: %v", err)
 	}
-	a, _ := svc.Create(ctx, "A", "alpha", groupID, nil, nil, nil, nil, nil, nil, nil, nil)
-	b, _ := svc.Create(ctx, "B", "beta", groupID, nil, nil, nil, nil, nil, nil, nil, nil)
+	a, _ := svc.Create(ctx, "A", "alpha", groupID, nil, nil, nil, nil, nil, nil, nil, nil, entity.SnapshotAttribution{})
+	b, _ := svc.Create(ctx, "B", "beta", groupID, nil, nil, nil, nil, nil, nil, nil, nil, entity.SnapshotAttribution{})
 
 	other := g2.ID
 	resp, err := svc.Compose(ctx, api.ComposeRequest{
@@ -547,8 +546,8 @@ func TestCard_Compose_AllowsTargetGroupOverride(t *testing.T) {
 func TestCard_Compose_RollsBackOnTargetCreationFailure(t *testing.T) {
 	svc, _, groupID := newCardCtx(t)
 	ctx := context.Background()
-	a, _ := svc.Create(ctx, "A", "alpha", groupID, nil, nil, nil, nil, nil, nil, nil, nil)
-	b, _ := svc.Create(ctx, "B", "beta", groupID, nil, nil, nil, nil, nil, nil, nil, nil)
+	a, _ := svc.Create(ctx, "A", "alpha", groupID, nil, nil, nil, nil, nil, nil, nil, nil, entity.SnapshotAttribution{})
+	b, _ := svc.Create(ctx, "B", "beta", groupID, nil, nil, nil, nil, nil, nil, nil, nil, entity.SnapshotAttribution{})
 
 	// Empty title fails CardSpec validation inside createInTx.
 	_, err := svc.Compose(ctx, api.ComposeRequest{
@@ -571,8 +570,8 @@ func TestCard_Compose_RollsBackOnTargetCreationFailure(t *testing.T) {
 func TestCard_Get_AttachesReferencesWhereCardIsSource(t *testing.T) {
 	svc, repo, groupID := newCardCtx(t)
 	ctx := context.Background()
-	src, _ := svc.Create(ctx, "src", "x", groupID, nil, nil, nil, nil, nil, nil, nil, nil)
-	der, _ := svc.Create(ctx, "der", "y", groupID, nil, nil, nil, nil, nil, nil, nil, nil)
+	src, _ := svc.Create(ctx, "src", "x", groupID, nil, nil, nil, nil, nil, nil, nil, nil, entity.SnapshotAttribution{})
+	der, _ := svc.Create(ctx, "der", "y", groupID, nil, nil, nil, nil, nil, nil, nil, nil, entity.SnapshotAttribution{})
 	conv := &entity.Conversation{ID: ulidutil.New(), Title: "", CreatedAt: time.Now(), LastMessageAt: time.Now()}
 	if err := repo.CreateConversation(ctx, conv); err != nil {
 		t.Fatalf("CreateConversation: %v", err)
@@ -597,7 +596,7 @@ func TestCard_Get_AttachesReferencesWhereCardIsSource(t *testing.T) {
 func TestCard_Create_WithInlineReference_HappyPath(t *testing.T) {
 	svc, repo, groupID := newCardCtx(t)
 	ctx := context.Background()
-	parent, _ := svc.Create(ctx, "parent", "x", groupID, nil, nil, nil, nil, nil, nil, nil, nil)
+	parent, _ := svc.Create(ctx, "parent", "x", groupID, nil, nil, nil, nil, nil, nil, nil, nil, entity.SnapshotAttribution{})
 	conv := &entity.Conversation{ID: ulidutil.New(), Title: "", CreatedAt: time.Now(), LastMessageAt: time.Now()}
 	if err := repo.CreateConversation(ctx, conv); err != nil {
 		t.Fatalf("CreateConversation: %v", err)
@@ -605,7 +604,7 @@ func TestCard_Create_WithInlineReference_HappyPath(t *testing.T) {
 	pid := parent.ID
 	cid := conv.ID
 	child, err := svc.Create(ctx, "child", "y", groupID, nil, &pid, &cid, nil, nil, nil,
-		&api.ReferenceSpec{SelectionText: "quick"}, nil)
+		&api.ReferenceSpec{SelectionText: "quick"}, nil, entity.SnapshotAttribution{})
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -624,10 +623,10 @@ func TestCard_Create_WithInlineReference_HappyPath(t *testing.T) {
 func TestCard_Create_WithInlineReference_AllowsNullConversation(t *testing.T) {
 	svc, repo, groupID := newCardCtx(t)
 	ctx := context.Background()
-	parent, _ := svc.Create(ctx, "parent", "x", groupID, nil, nil, nil, nil, nil, nil, nil, nil)
+	parent, _ := svc.Create(ctx, "parent", "x", groupID, nil, nil, nil, nil, nil, nil, nil, nil, entity.SnapshotAttribution{})
 	pid := parent.ID
 	child, err := svc.Create(ctx, "child", "y", groupID, nil, &pid, nil, nil, nil, nil,
-		&api.ReferenceSpec{SelectionText: "anchor"}, nil)
+		&api.ReferenceSpec{SelectionText: "anchor"}, nil, entity.SnapshotAttribution{})
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -646,7 +645,7 @@ func TestCard_Create_WithInlineReference_AllowsNullConversation(t *testing.T) {
 func TestCard_Create_WithInlineReference_RejectsWithoutParent(t *testing.T) {
 	svc, _, groupID := newCardCtx(t)
 	_, err := svc.Create(context.Background(), "child", "y", groupID, nil, nil, nil, nil, nil, nil,
-		&api.ReferenceSpec{SelectionText: "x"}, nil)
+		&api.ReferenceSpec{SelectionText: "x"}, nil, entity.SnapshotAttribution{})
 	if err == nil || !errors.Is(err, errors.BadRequest) {
 		t.Fatalf("expected BadRequest, got %v", err)
 	}
@@ -655,10 +654,10 @@ func TestCard_Create_WithInlineReference_RejectsWithoutParent(t *testing.T) {
 func TestCard_Create_WithInlineReference_RejectsEmptySelection(t *testing.T) {
 	svc, _, groupID := newCardCtx(t)
 	ctx := context.Background()
-	parent, _ := svc.Create(ctx, "parent", "x", groupID, nil, nil, nil, nil, nil, nil, nil, nil)
+	parent, _ := svc.Create(ctx, "parent", "x", groupID, nil, nil, nil, nil, nil, nil, nil, nil, entity.SnapshotAttribution{})
 	pid := parent.ID
 	_, err := svc.Create(ctx, "child", "y", groupID, nil, &pid, nil, nil, nil, nil,
-		&api.ReferenceSpec{SelectionText: ""}, nil)
+		&api.ReferenceSpec{SelectionText: ""}, nil, entity.SnapshotAttribution{})
 	if err == nil || !errors.Is(err, errors.BadRequest) {
 		t.Fatalf("expected BadRequest, got %v", err)
 	}
@@ -667,10 +666,10 @@ func TestCard_Create_WithInlineReference_RejectsEmptySelection(t *testing.T) {
 func TestCard_Create_WithInlineReference_RejectsTooLongSelection(t *testing.T) {
 	svc, _, groupID := newCardCtx(t)
 	ctx := context.Background()
-	parent, _ := svc.Create(ctx, "parent", "x", groupID, nil, nil, nil, nil, nil, nil, nil, nil)
+	parent, _ := svc.Create(ctx, "parent", "x", groupID, nil, nil, nil, nil, nil, nil, nil, nil, entity.SnapshotAttribution{})
 	pid := parent.ID
 	_, err := svc.Create(ctx, "child", "y", groupID, nil, &pid, nil, nil, nil, nil,
-		&api.ReferenceSpec{SelectionText: strings.Repeat("x", 5001)}, nil)
+		&api.ReferenceSpec{SelectionText: strings.Repeat("x", 5001)}, nil, entity.SnapshotAttribution{})
 	if err == nil || !errors.Is(err, errors.BadRequest) {
 		t.Fatalf("expected BadRequest, got %v", err)
 	}
@@ -679,11 +678,11 @@ func TestCard_Create_WithInlineReference_RejectsTooLongSelection(t *testing.T) {
 func TestCard_Children_HydratesTagsAndOrdersByPosition(t *testing.T) {
 	svc, _, groupID := newCardCtx(t)
 	ctx := context.Background()
-	parent, _ := svc.Create(ctx, "P", "body", groupID, nil, nil, nil, nil, nil, nil, nil, nil)
+	parent, _ := svc.Create(ctx, "P", "body", groupID, nil, nil, nil, nil, nil, nil, nil, nil, entity.SnapshotAttribution{})
 	pid := parent.ID
 	tags := []string{"alpha"}
-	svc.Create(ctx, "B", "b", groupID, tags, &pid, nil, nil, nil, nil, nil, nil)
-	svc.Create(ctx, "A", "a", groupID, nil, &pid, nil, nil, nil, nil, nil, nil)
+	svc.Create(ctx, "B", "b", groupID, tags, &pid, nil, nil, nil, nil, nil, nil, entity.SnapshotAttribution{})
+	svc.Create(ctx, "A", "a", groupID, nil, &pid, nil, nil, nil, nil, nil, nil, entity.SnapshotAttribution{})
 
 	got, err := svc.Children(ctx, pid, false)
 	if err != nil {
@@ -702,14 +701,14 @@ func TestCard_Children_HydratesTagsAndOrdersByPosition(t *testing.T) {
 func TestDecompose_ClearsParentContentAndSkipsReferences(t *testing.T) {
 	svc, repo, groupID := newCardCtx(t)
 	ctx := context.Background()
-	parent, _ := svc.Create(ctx, "P", "original body", groupID, nil, nil, nil, nil, nil, nil, nil, nil)
+	parent, _ := svc.Create(ctx, "P", "original body", groupID, nil, nil, nil, nil, nil, nil, nil, nil, entity.SnapshotAttribution{})
 	resp, err := svc.Decompose(ctx, api.DecomposeRequest{
 		ParentCardID: parent.ID,
 		Cards: []api.CardSpec{
 			{Title: "S1", Content: "s1"},
 			{Title: "S2", Content: "s2"},
 		},
-	})
+	}, entity.SnapshotAttribution{})
 	if err != nil {
 		t.Fatalf("Decompose: %v", err)
 	}
@@ -729,18 +728,18 @@ func TestDecompose_ClearsParentContentAndSkipsReferences(t *testing.T) {
 func TestDecompose_RejectsWhenParentAlreadyHasLiveChildren(t *testing.T) {
 	svc, _, groupID := newCardCtx(t)
 	ctx := context.Background()
-	parent, _ := svc.Create(ctx, "P", "body", groupID, nil, nil, nil, nil, nil, nil, nil, nil)
+	parent, _ := svc.Create(ctx, "P", "body", groupID, nil, nil, nil, nil, nil, nil, nil, nil, entity.SnapshotAttribution{})
 	_, err := svc.Decompose(ctx, api.DecomposeRequest{
 		ParentCardID: parent.ID,
 		Cards:        []api.CardSpec{{Title: "S1", Content: "s1"}},
-	})
+	}, entity.SnapshotAttribution{})
 	if err != nil {
 		t.Fatalf("first Decompose: %v", err)
 	}
 	_, err = svc.Decompose(ctx, api.DecomposeRequest{
 		ParentCardID: parent.ID,
 		Cards:        []api.CardSpec{{Title: "S2", Content: "s2"}},
-	})
+	}, entity.SnapshotAttribution{})
 	if err == nil {
 		t.Fatalf("expected error on re-decompose, got nil")
 	}
@@ -752,7 +751,7 @@ func TestDecompose_RejectsWhenParentAlreadyHasLiveChildren(t *testing.T) {
 func TestDecompose_ChildPositionDefaultsToSpecIndex(t *testing.T) {
 	svc, _, groupID := newCardCtx(t)
 	ctx := context.Background()
-	parent, _ := svc.Create(ctx, "P", "body", groupID, nil, nil, nil, nil, nil, nil, nil, nil)
+	parent, _ := svc.Create(ctx, "P", "body", groupID, nil, nil, nil, nil, nil, nil, nil, nil, entity.SnapshotAttribution{})
 	resp, err := svc.Decompose(ctx, api.DecomposeRequest{
 		ParentCardID: parent.ID,
 		Cards: []api.CardSpec{
@@ -760,7 +759,7 @@ func TestDecompose_ChildPositionDefaultsToSpecIndex(t *testing.T) {
 			{Title: "S1", Content: "s1"},
 			{Title: "S2", Content: "s2"},
 		},
-	})
+	}, entity.SnapshotAttribution{})
 	if err != nil {
 		t.Fatalf("Decompose: %v", err)
 	}
@@ -774,7 +773,7 @@ func TestDecompose_ChildPositionDefaultsToSpecIndex(t *testing.T) {
 func TestDecompose_KeepsContainerContentWhenSet(t *testing.T) {
 	svc, _, groupID := newCardCtx(t)
 	ctx := context.Background()
-	parent, _ := svc.Create(ctx, "P", "meta\n\nS1\n\nS2", groupID, nil, nil, nil, nil, nil, nil, nil, nil)
+	parent, _ := svc.Create(ctx, "P", "meta\n\nS1\n\nS2", groupID, nil, nil, nil, nil, nil, nil, nil, nil, entity.SnapshotAttribution{})
 	meta := "Date: 2026-07-11\nStatus: draft"
 	resp, err := svc.Decompose(ctx, api.DecomposeRequest{
 		ParentCardID:     parent.ID,
@@ -783,7 +782,7 @@ func TestDecompose_KeepsContainerContentWhenSet(t *testing.T) {
 			{Title: "S1", Content: "s1"},
 			{Title: "S2", Content: "s2"},
 		},
-	})
+	}, entity.SnapshotAttribution{})
 	if err != nil {
 		t.Fatalf("Decompose: %v", err)
 	}
@@ -799,11 +798,11 @@ func TestDecompose_KeepsContainerContentWhenSet(t *testing.T) {
 func TestDecompose_RejectsContainerContentOnNestedParent(t *testing.T) {
 	svc, _, groupID := newCardCtx(t)
 	ctx := context.Background()
-	parent, _ := svc.Create(ctx, "P", "body", groupID, nil, nil, nil, nil, nil, nil, nil, nil)
+	parent, _ := svc.Create(ctx, "P", "body", groupID, nil, nil, nil, nil, nil, nil, nil, nil, entity.SnapshotAttribution{})
 	resp, err := svc.Decompose(ctx, api.DecomposeRequest{
 		ParentCardID: parent.ID,
 		Cards:        []api.CardSpec{{Title: "S1", Content: "s1"}},
-	})
+	}, entity.SnapshotAttribution{})
 	if err != nil {
 		t.Fatalf("first Decompose: %v", err)
 	}
@@ -813,7 +812,7 @@ func TestDecompose_RejectsContainerContentOnNestedParent(t *testing.T) {
 		ParentCardID:     child.ID,
 		ContainerContent: &meta,
 		Cards:            []api.CardSpec{{Title: "G1", Content: "g1"}},
-	})
+	}, entity.SnapshotAttribution{})
 	if err == nil {
 		t.Fatalf("expected error setting container_content on nested parent, got nil")
 	}

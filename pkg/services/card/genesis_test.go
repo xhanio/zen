@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/xhanio/zen/pkg/types/api"
+	"github.com/xhanio/zen/pkg/types/entity"
 )
 
 // The auto-generated genesis for decompose children must use a title
@@ -16,7 +17,7 @@ func TestDecompose_DefaultGenesis_UsesTitleChainNotIDs(t *testing.T) {
 
 	// Build a 3-level ancestry via decompose:
 	//   grandparent "GP"  →  parent "PA"  →  (decompose here, children under PA)
-	grandparent, err := svc.Create(ctx, "GP", "gp body", groupID, nil, nil, nil, nil, nil, nil, nil, nil)
+	grandparent, err := svc.Create(ctx, "GP", "gp body", groupID, nil, nil, nil, nil, nil, nil, nil, nil, entity.SnapshotAttribution{})
 	if err != nil {
 		t.Fatalf("Create GP: %v", err)
 	}
@@ -26,7 +27,7 @@ func TestDecompose_DefaultGenesis_UsesTitleChainNotIDs(t *testing.T) {
 		Cards: []api.CardSpec{{
 			Title: "PA", Content: "pa body",
 		}},
-	})
+	}, entity.SnapshotAttribution{})
 	if err != nil {
 		t.Fatalf("Decompose GP: %v", err)
 	}
@@ -39,7 +40,7 @@ func TestDecompose_DefaultGenesis_UsesTitleChainNotIDs(t *testing.T) {
 		Cards: []api.CardSpec{{
 			Title: "child", Content: "child body",
 		}},
-	})
+	}, entity.SnapshotAttribution{})
 	if err != nil {
 		t.Fatalf("Decompose PA: %v", err)
 	}
@@ -57,14 +58,14 @@ func TestDecompose_DefaultGenesis_UsesTitleChainNotIDs(t *testing.T) {
 func TestDecompose_DefaultGenesis_TopLevelParent_UsesParentTitleAlone(t *testing.T) {
 	svc, _, groupID := newCardCtx(t)
 	ctx := context.Background()
-	parent, err := svc.Create(ctx, "Solo parent", "body", groupID, nil, nil, nil, nil, nil, nil, nil, nil)
+	parent, err := svc.Create(ctx, "Solo parent", "body", groupID, nil, nil, nil, nil, nil, nil, nil, nil, entity.SnapshotAttribution{})
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
 	resp, err := svc.Decompose(ctx, api.DecomposeRequest{
 		ParentCardID: parent.ID,
-		Cards: []api.CardSpec{{Title: "kid", Content: "body"}},
-	})
+		Cards:        []api.CardSpec{{Title: "kid", Content: "body"}},
+	}, entity.SnapshotAttribution{})
 	if err != nil {
 		t.Fatalf("Decompose: %v", err)
 	}
