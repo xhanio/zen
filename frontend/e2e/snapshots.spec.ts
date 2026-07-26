@@ -60,8 +60,12 @@ test('a conversation-attributed edit shows as a record and opens a diff', async 
   await expect(page.locator('[data-test="snapshot-banner"]')).toHaveCount(0);
   await expect(page.locator('[data-test="diff-line-add"]')).toHaveCount(0);
 
-  // The all-snapshots fallback list reaches the same records from the card.
+  // The fallback entry is a chip in the title row, not a standing panel: it
+  // costs nothing until opened, and reaches the same records from the card.
+  await expect(page.locator('[data-test="snapshot-popover"]')).toHaveCount(0);
+  await page.locator('[data-test="snapshot-chip"]').click();
   await expect(page.locator('[data-test="snapshot-list-row"]')).toHaveCount(2);
   await page.locator('[data-test="snapshot-list-row"]').first().click();
+  await expect(page.locator('[data-test="snapshot-popover"]')).toHaveCount(0);
   await expect(page.locator('[data-test="snapshot-banner"]')).toBeVisible();
 });

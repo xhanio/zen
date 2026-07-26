@@ -28,7 +28,7 @@ import { sortCatalog } from '../utils/levelCatalog';
 import CardReferencesPanel from '../components/CardReferencesPanel.vue';
 import SectionConversationChip from '../components/SectionConversationChip.vue';
 import SnapshotDiff from '../components/SnapshotDiff.vue';
-import CardSnapshotList from '../components/CardSnapshotList.vue';
+import CardSnapshotChip from '../components/CardSnapshotChip.vue';
 import { useSnapshotsStore } from '../stores/snapshots';
 
 const props = defineProps<{ cardId: string }>();
@@ -411,6 +411,11 @@ function onContentClick(event: MouseEvent) {
           persistent
           :disabled="!!card.deleted_at"
         />
+        <CardSnapshotChip
+          :card-id="cardId"
+          :active-id="activeSnapshotID"
+          @open="openSnapshot"
+        />
         <button
           v-if="card.deleted_at"
           type="button"
@@ -591,9 +596,6 @@ function onContentClick(event: MouseEvent) {
       </div>
     </div>
     <CardReferencesPanel v-if="hasReferences" :root-card="card" />
-    <aside class="flex h-full w-[260px] shrink-0 flex-col border-l border-border bg-surface px-3 py-2">
-      <CardSnapshotList :card-id="card.id" :active-id="activeSnapshotID" @open="openSnapshot" />
-    </aside>
   </div>
   <p v-else-if="cardsStore.loading" class="text-sm text-muted-fg">Loading…</p>
   <p v-else class="text-sm text-muted-fg">Card not found.</p>
