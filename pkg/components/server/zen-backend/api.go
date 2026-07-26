@@ -8,10 +8,11 @@ import (
 	conversationRouter "github.com/xhanio/zen/pkg/routers/conversation"
 	groupRouter "github.com/xhanio/zen/pkg/routers/group"
 	healthRouter "github.com/xhanio/zen/pkg/routers/health"
+	presenceRouter "github.com/xhanio/zen/pkg/routers/presence"
 	referenceRouter "github.com/xhanio/zen/pkg/routers/reference"
 	searchRouter "github.com/xhanio/zen/pkg/routers/search"
+	snapshotRouter "github.com/xhanio/zen/pkg/routers/snapshot"
 	tagRouter "github.com/xhanio/zen/pkg/routers/tag"
-	presenceRouter "github.com/xhanio/zen/pkg/routers/presence"
 	trashRouter "github.com/xhanio/zen/pkg/routers/trash"
 )
 
@@ -27,6 +28,7 @@ func (m *manager) initAPI() error {
 		searchRouter.New(m.search, m.log),
 		trashRouter.New(m.card, m.log),
 		referenceRouter.New(m.reference, m.log),
+		snapshotRouter.New(m.snapshot, m.log),
 	}
 
 	if err := m.api.RegisterMiddlewares(middlewares...); err != nil {

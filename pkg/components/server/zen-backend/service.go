@@ -23,6 +23,7 @@ import (
 	"github.com/xhanio/zen/pkg/services/reference"
 	"github.com/xhanio/zen/pkg/services/repository"
 	"github.com/xhanio/zen/pkg/services/search"
+	"github.com/xhanio/zen/pkg/services/snapshot"
 	"github.com/xhanio/zen/pkg/services/tag"
 	"github.com/xhanio/zen/pkg/utils/busutil"
 	"github.com/xhanio/zen/pkg/utils/infra"
@@ -132,6 +133,11 @@ func (m *manager) initServices() error {
 		m.card,
 		m.conversation,
 		reference.WithLogger(m.log),
+	)
+
+	m.snapshot = snapshot.New(
+		m.repository,
+		snapshot.WithLogger(m.log),
 	)
 
 	m.api = server.New(

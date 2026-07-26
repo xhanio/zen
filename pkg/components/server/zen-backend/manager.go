@@ -9,9 +9,9 @@ import (
 	"github.com/xhanio/framingo/pkg/services/db"
 	"github.com/xhanio/framingo/pkg/services/pubsub"
 	"github.com/xhanio/framingo/pkg/services/supervisor"
+	framodel "github.com/xhanio/framingo/pkg/types/model"
 	"github.com/xhanio/framingo/pkg/utils/log"
 	"github.com/xhanio/framingo/pkg/utils/reflectutil"
-	framodel "github.com/xhanio/framingo/pkg/types/model"
 
 	"github.com/xhanio/zen/pkg/services/repository"
 	"github.com/xhanio/zen/pkg/types/model"
@@ -34,6 +34,7 @@ type manager struct {
 	search       model.Search
 	conversation model.Conversation
 	reference    model.Reference
+	snapshot     model.Snapshot
 	presence     model.Presence
 	delivery     model.Delivery
 

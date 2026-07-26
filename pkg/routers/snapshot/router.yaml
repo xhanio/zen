@@ -1,0 +1,9 @@
+server: http
+prefix: /snapshots
+handlers:
+  - method: GET
+    path: /
+    func: ListSnapshots
+  - method: GET
+    path: /:id
+    func: GetSnapshot
