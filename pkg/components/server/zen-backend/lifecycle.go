@@ -48,6 +48,10 @@ func (m *manager) Init(ctx context.Context) error {
 		return errors.Wrap(err)
 	}
 
+	if err := m.runV110PostInit(ctx); err != nil {
+		return errors.Wrap(err)
+	}
+
 	if err := m.initAPI(); err != nil {
 		return errors.Wrap(err)
 	}

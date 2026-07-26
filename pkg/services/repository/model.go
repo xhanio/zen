@@ -25,4 +25,7 @@ type Repository interface {
 	// card once (based on prior conversation activity). Idempotent — cards
 	// already at or above the computed floor are left alone.
 	RunV12Backfill(ctx context.Context) error
+	// RunV110Backfill gives every pre-v1.1.0 card a baseline snapshot so its
+	// first post-upgrade edit has something to diff against. Idempotent.
+	RunV110Backfill(ctx context.Context) error
 }
