@@ -153,3 +153,70 @@ test('a drag inside an html card body records the offsets', async ({ page, reque
   expect(user.selection_text).toBe(selected);
   expect(rendered.slice(user.selection_start, user.selection_end)).toBe(selected);
 });
+
+// The whole feature, through the product: drag on an html card, ask, and the
+// dragged span comes back underlined. Must be a real mouse drag — Chrome only
+// retargets a shadow-tree selection for genuine input, so setBaseAndExtent
+// would pass even against a broken build (the v1.1.2 lesson).
+test('a message selection paints an underline on the card', async ({ page, request }) => {
+  const stamp = Date.now();
+
+  const group = await (await request.post(`${API}/groups`, {
+    data: { name: `msgsel-e2e-${stamp}` },
+  })).json();
+
+  const source = await (await request.post(`${API}/cards`, {
+    data: {
+      title: `Msgsel ${stamp}`,
+      content: '<p>Hello <strong>brave</strong> world</p>',
+      format: 'html',
+      group_id: group.id,
+    },
+  })).json();
+
+  await page.goto(`/c/${source.id}`);
+  await expect(page.locator('.html-body-host')).toBeAttached();
+
+  const box = await page.evaluate((cardId) => {
+    const host = document
+      .querySelector(`[data-card-id="${cardId}"]`)!
+      .querySelector('.html-body-host') as HTMLElement;
+    const r = host.shadowRoot!.querySelector('p')!.getBoundingClientRect();
+    return { x: r.x, y: r.y, w: r.width, h: r.height };
+  }, source.id);
+
+  await page.mouse.move(box.x + 2, box.y + box.h / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.w - 2, box.y + box.h / 2, { steps: 15 });
+  await page.mouse.up();
+
+  const selected = await page.evaluate(() => window.getSelection()!.toString().trim());
+  expect(selected.length).toBeGreaterThan(0);
+
+  await page.getByRole('button', { name: 'Ask' }).click();
+  await page.locator('[data-test="composer-input"]').fill('what is this?');
+  await page.locator('[data-test="composer-send"]').click();
+
+  // Wait for the message to actually persist before reloading. Reloading
+  // straight after the click races the POST, and the reloaded page then has
+  // nothing to paint — which looks exactly like a broken feature.
+  await expect.poll(async () => {
+    const convs = await (await request.get(
+      `${API}/conversations?anchor_kind=card&anchor_id=${source.id}`,
+    )).json();
+    const conv = (convs.conversations ?? [])[0];
+    if (!conv) return null;
+    const sels = await (await request.get(`${API}/cards/${source.id}/selections`)).json();
+    return (sels.selections ?? []).length;
+  }, { timeout: 10_000 }).toBe(1);
+
+  // Reload so the card fetches its selections fresh from the endpoint.
+  await page.reload();
+  const bodyHost = page.locator('.html-body-host').first();
+  await expect.poll(async () => {
+    return await bodyHost.evaluate((host: HTMLElement) => {
+      const marks = host.shadowRoot?.querySelectorAll('mark.zen-sel') ?? [];
+      return Array.from(marks).map((m) => m.textContent).join('');
+    });
+  }, { timeout: 10_000 }).toBe(selected);
+});
