@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"time"
 
 	"github.com/xhanio/errors"
 	"gorm.io/gorm"
@@ -134,4 +135,52 @@ func (m *manager) CountUserMessagesByAnchorCard(ctx context.Context, cardID stri
 		return 0, errors.DBFailed.Wrap(err)
 	}
 	return int(count), nil
+}
+
+func (m *manager) ListCardSelections(ctx context.Context, cardID string) ([]*entity.CardSelection, error) {
+	var rows []struct {
+		MessageID      string
+		ConversationID string
+		SelectionText  *string
+		SelectionStart int
+		SelectionEnd   int
+		SelectionSeq   *int
+		CreatedAt      time.Time
+	}
+	err := m.db.FromContext(ctx).
+		Table("messages").
+		Select(`messages.id AS message_id,
+			messages.conversation_id AS conversation_id,
+			messages.selection_text AS selection_text,
+			messages.selection_start AS selection_start,
+			messages.selection_end AS selection_end,
+			messages.selection_seq AS selection_seq,
+			messages.created_at AS created_at`).
+		// The join is load-bearing beyond filtering: deleting a conversation
+		// leaves its messages behind (no cascade without the foreign_keys
+		// pragma), and this is what drops those orphans.
+		Joins("JOIN conversations ON conversations.id = messages.conversation_id").
+		Where("conversations.anchor_kind = ? AND conversations.anchor_id = ?", "card", cardID).
+		Where("messages.selection_start IS NOT NULL AND messages.selection_end IS NOT NULL").
+		Order("messages.created_at ASC, messages.id ASC").
+		Scan(&rows).Error
+	if err != nil {
+		return nil, errors.DBFailed.Wrap(err)
+	}
+	out := make([]*entity.CardSelection, 0, len(rows))
+	for i := range rows {
+		s := &entity.CardSelection{
+			MessageID:      rows[i].MessageID,
+			ConversationID: rows[i].ConversationID,
+			SelectionStart: rows[i].SelectionStart,
+			SelectionEnd:   rows[i].SelectionEnd,
+			SelectionSeq:   rows[i].SelectionSeq,
+			CreatedAt:      rows[i].CreatedAt,
+		}
+		if rows[i].SelectionText != nil {
+			s.SelectionText = *rows[i].SelectionText
+		}
+		out = append(out, s)
+	}
+	return out, nil
 }

@@ -25,4 +25,8 @@ type Message interface {
 	// CountUserMessagesByAnchorCard returns the total number of role="user"
 	// messages across all conversations anchored to cardID (anchor_kind="card").
 	CountUserMessagesByAnchorCard(ctx context.Context, cardID string) (int, error)
+	// ListCardSelections returns every ranged message selection whose
+	// conversation is anchored to cardID, oldest first. Messages without
+	// captured offsets are excluded: they can never be painted.
+	ListCardSelections(ctx context.Context, cardID string) ([]*entity.CardSelection, error)
 }
