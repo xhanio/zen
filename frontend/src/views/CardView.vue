@@ -306,6 +306,12 @@ async function confirmDelete() {
   }
 }
 
+// The snapshot the selection is being taken against — a label on the resulting
+// reference, never a paint condition, so a missing seq costs nothing.
+const currentSnapshotSeq = computed<number | null>(
+  () => snapshotsStore.byCard[props.cardId]?.[0]?.seq ?? null,
+);
+
 const cardHighlights = computed<Highlight[]>(() =>
   (card.value?.references ?? []).map((r) => ({ id: r.id, text: r.selection_text })),
 );
@@ -528,6 +534,8 @@ function onContentClick(event: MouseEvent) {
       v-if="!card.deleted_at"
       :rect="selection.rect.value"
       :selection-text="selection.text.value"
+      :selection-range="selection.range.value"
+      :selection-seq="currentSnapshotSeq"
       anchor-kind="card"
       :anchor-id="selection.hostCardId.value ?? cardId"
       @opened="selection.clear()"

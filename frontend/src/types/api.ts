@@ -114,6 +114,9 @@ export interface AppendMessageRequest {
   // Addresses the message at one live Claude Code session. Omitted means the
   // message posts undelivered — it does not mean "broadcast".
   target_session_id?: string;
+  selection_start?: number;
+  selection_end?: number;
+  selection_seq?: number;
 }
 
 export interface DispatchRequest {

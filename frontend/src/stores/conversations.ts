@@ -354,12 +354,25 @@ export const useConversationsStore = defineStore('conversations', () => {
     openWS(id);
   }
 
-  async function optimisticPost(content: string, selectionText: string | null = null): Promise<void> {
+  async function optimisticPost(
+    content: string,
+    selectionText: string | null = null,
+    range: { start: number; end: number } | null = null,
+    selectionSeq: number | null = null,
+  ): Promise<void> {
     const id = activeID.value;
     if (!id) throw new Error('no active conversation');
 
     const req: AppendMessageRequest = { role: 'user', content };
     if (selectionText) req.selection_text = selectionText;
+    // The range rides with the text it describes: this is the only moment the
+    // rendered offsets are known, and the reference inherits them from here.
+    // The seq is a label, so its absence never drops the offsets.
+    if (selectionText && range) {
+      req.selection_start = range.start;
+      req.selection_end = range.end;
+      if (selectionSeq != null) req.selection_seq = selectionSeq;
+    }
     if (presence.selectedSessionID) req.target_session_id = presence.selectedSessionID;
 
     let msg: Message;

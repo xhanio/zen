@@ -41,7 +41,12 @@ async function send() {
       });
       await store.setActive(conv.id);
     }
-    await store.optimisticPost(text, sidebar.pendingSelection.value);
+    await store.optimisticPost(
+      text,
+      sidebar.pendingSelection.value,
+      sidebar.pendingRange.value,
+      sidebar.pendingSeq.value,
+    );
     content.value = '';
     sidebar.clearSelection();
   } catch (e) {

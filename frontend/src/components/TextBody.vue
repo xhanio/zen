@@ -23,5 +23,5 @@ watch(() => [props.source, props.highlights], paint);
 </script>
 
 <template>
-  <pre ref="root" class="whitespace-pre-wrap font-mono text-sm bg-paper text-paper-fg"></pre>
+  <pre ref="root" data-body-root class="whitespace-pre-wrap font-mono text-sm bg-paper text-paper-fg"></pre>
 </template>

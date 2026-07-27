@@ -5,6 +5,8 @@ import { useChatSidebar } from '../../composables/useChatSidebar';
 const props = defineProps<{
   rect: DOMRect | null;
   selectionText: string;
+  selectionRange?: { start: number; end: number } | null;
+  selectionSeq?: number | null;
   anchorKind: 'card';
   anchorId: string;
 }>();
@@ -26,7 +28,13 @@ const style = computed(() => {
 });
 
 async function ask() {
-  await sidebar.openFor(props.anchorKind, props.anchorId, props.selectionText);
+  await sidebar.openFor(
+    props.anchorKind,
+    props.anchorId,
+    props.selectionText,
+    props.selectionRange ?? null,
+    props.selectionSeq ?? null,
+  );
   emit('opened');
 }
 </script>

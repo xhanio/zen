@@ -640,3 +640,58 @@ describe('linked conversations (card view)', () => {
     expect(store.byID['gone']).toBeUndefined();
   });
 });
+
+describe('selection range on post', () => {
+  it('posts the range alongside the selection text', async () => {
+    mockSequence([
+      { status: 200, body: CONV },
+      { status: 200, body: { messages: [] } },
+      { status: 201, body: MSG },
+    ]);
+    const store = useConversationsStore();
+    await store.setActive('01CONV');
+
+    await store.optimisticPost('tighten this', 'quick', { start: 4, end: 9 }, 2);
+
+    const body = JSON.parse((global.fetch as any).mock.calls.at(-1)![1].body);
+    expect(body.selection_text).toBe('quick');
+    expect(body.selection_start).toBe(4);
+    expect(body.selection_end).toBe(9);
+    expect(body.selection_seq).toBe(2);
+  });
+
+  it('omits the range fields when there is none', async () => {
+    mockSequence([
+      { status: 200, body: CONV },
+      { status: 200, body: { messages: [] } },
+      { status: 201, body: MSG },
+    ]);
+    const store = useConversationsStore();
+    await store.setActive('01CONV');
+
+    await store.optimisticPost('plain question', null, null, null);
+
+    const body = JSON.parse((global.fetch as any).mock.calls.at(-1)![1].body);
+    expect(body.selection_start).toBeUndefined();
+    expect(body.selection_end).toBeUndefined();
+    expect(body.selection_seq).toBeUndefined();
+  });
+
+  // A seq is a label, not a paint condition — its absence must not drop the
+  // offsets, which are what actually locate the span.
+  it('sends the range even when the snapshot seq is unknown', async () => {
+    mockSequence([
+      { status: 200, body: CONV },
+      { status: 200, body: { messages: [] } },
+      { status: 201, body: MSG },
+    ]);
+    const store = useConversationsStore();
+    await store.setActive('01CONV');
+
+    await store.optimisticPost('tighten this', 'quick', { start: 4, end: 9 }, null);
+
+    const body = JSON.parse((global.fetch as any).mock.calls.at(-1)![1].body);
+    expect(body.selection_start).toBe(4);
+    expect(body.selection_seq).toBeUndefined();
+  });
+});

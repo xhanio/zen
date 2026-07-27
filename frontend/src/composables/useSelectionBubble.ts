@@ -1,4 +1,5 @@
 import { onMounted, onBeforeUnmount, ref, type Ref } from 'vue';
+import { offsetsForRange, renderedText, trimToText } from '../utils/selectionRange';
 
 // True if `range` is fully contained inside `target` OR inside the open
 // shadow tree of any `.html-body-host` descendant of `target`. HtmlBody.vue
@@ -58,16 +59,50 @@ export function findCardId(node: Node | null): string | null {
   return null;
 }
 
+// The offset space is the anchored card's own body root: a selection inside a
+// container's rendered child must measure against that child, or the numbers
+// stop meaning anything once the child is opened on its own.
+export function bodyRootFor(cardID: string | null, within: ParentNode = document): Node | null {
+  if (!cardID) return null;
+  const el = within.querySelector(`[data-card-id="${cardID}"]`);
+  if (!el) return null;
+  const shadowHost = el.querySelector('.html-body-host') as HTMLElement | null;
+  if (shadowHost?.shadowRoot) return shadowHost.shadowRoot;
+  return el.querySelector('[data-body-root]') ?? el;
+}
+
+// Returns null whenever the span cannot be pinned down — a cross-card drag, a
+// root we cannot find, or a trimmed window that no longer equals the reported
+// text. Null means "no range", which is a supported state, not a failure.
+export function measureSelection(
+  cardID: string | null,
+  domRange: Range,
+  trimmedText: string,
+): { start: number; end: number } | null {
+  const root = bodyRootFor(cardID);
+  if (!root) return null;
+  const raw = offsetsForRange(root, domRange);
+  if (!raw) return null;
+  const full = renderedText(root);
+  // text is reported trimmed, so the window must be trimmed to match or the
+  // paint-side checksum could never succeed.
+  const span = trimToText(full, raw.start, raw.end);
+  if (span.end <= span.start) return null;
+  return full.slice(span.start, span.end) === trimmedText ? span : null;
+}
+
 export function useSelectionBubble(targetRef: Ref<HTMLElement | null>) {
   const rect = ref<DOMRect | null>(null);
   const text = ref('');
   const hostCardId = ref<string | null>(null);
+  const range = ref<{ start: number; end: number } | null>(null);
   let timer: ReturnType<typeof setTimeout> | null = null;
 
   function clear() {
     rect.value = null;
     text.value = '';
     hostCardId.value = null;
+    range.value = null;
   }
 
   function onSelectionChange() {
@@ -92,19 +127,24 @@ export function useSelectionBubble(targetRef: Ref<HTMLElement | null>) {
         clear();
         return;
       }
-      const range = sel.getRangeAt(0);
-      if (!rangeInside(target, range)) {
+      const domRange = sel.getRangeAt(0);
+      if (!rangeInside(target, domRange)) {
         clear();
         return;
       }
-      const r = selectionRect(target, range);
+      const r = selectionRect(target, domRange);
       if (!r) {
         clear();
         return;
       }
       rect.value = r;
       text.value = t;
-      hostCardId.value = findCardId(range.startContainer);
+      const cardID = findCardId(domRange.startContainer);
+      hostCardId.value = cardID;
+      // A drag spanning two child cards has no single anchor, so it records no
+      // range and falls back to the unique-text path.
+      const endCardID = findCardId(domRange.endContainer);
+      range.value = endCardID === cardID ? measureSelection(cardID, domRange, t) : null;
     }, 100);
   }
 
@@ -116,5 +156,5 @@ export function useSelectionBubble(targetRef: Ref<HTMLElement | null>) {
     if (timer) clearTimeout(timer);
   });
 
-  return { rect, text, hostCardId, clear };
+  return { rect, text, hostCardId, range, clear };
 }

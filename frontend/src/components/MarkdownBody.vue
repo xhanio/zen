@@ -24,7 +24,7 @@ watch(() => [props.source, props.highlights], paint);
 </script>
 
 <template>
-  <div ref="root" class="md-body max-w-none bg-paper text-paper-fg"></div>
+  <div ref="root" data-body-root class="md-body max-w-none bg-paper text-paper-fg"></div>
 </template>
 
 <style scoped>
