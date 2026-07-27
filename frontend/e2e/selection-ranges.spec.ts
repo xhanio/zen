@@ -220,3 +220,52 @@ test('a message selection paints an underline on the card', async ({ page, reque
     });
   }, { timeout: 10_000 }).toBe(selected);
 });
+
+// The parity this feature exists to establish: the same section shows the same
+// mark whether opened alone or read inside its document.
+test('a section selection paints in the container view too', async ({ page, request }) => {
+  const stamp = Date.now();
+
+  const group = await (await request.post(`${API}/groups`, {
+    data: { name: `sectionhl-e2e-${stamp}` },
+  })).json();
+
+  // Parent with one child section — the shape decompose produces.
+  const parent = await (await request.post(`${API}/cards`, {
+    data: { title: `Doc ${stamp}`, content: '', group_id: group.id },
+  })).json();
+
+  const section = await (await request.post(`${API}/cards`, {
+    data: {
+      title: `Section ${stamp}`,
+      content: 'hello brave world',
+      format: 'markdown',
+      group_id: group.id,
+      parent_card_id: parent.id,
+    },
+  })).json();
+
+  const conv = await (await request.post(`${API}/conversations`, {
+    data: { title: `sectionhl ${stamp}`, anchor_kind: 'card', anchor_id: section.id },
+  })).json();
+
+  // "brave" is [6,11) in the section's OWN rendered text — the section's offset
+  // space, not the container's. No translation happens anywhere.
+  await request.post(`${API}/conversations/${conv.id}/messages`, {
+    data: {
+      role: 'user', content: 'what is this?',
+      selection_text: 'brave', selection_start: 6, selection_end: 11, selection_seq: 1,
+    },
+  });
+
+  // Standalone: the baseline that already worked in v1.1.3.
+  await page.goto(`/c/${section.id}`);
+  await expect(page.locator('mark.zen-sel')).toHaveCount(1);
+  expect(await page.locator('mark.zen-sel').textContent()).toBe('brave');
+
+  // Container: the same mark, inside that section's subtree.
+  await page.goto(`/c/${parent.id}`);
+  const inSection = page.locator(`[data-card-id="${section.id}"] mark.zen-sel`);
+  await expect(inSection).toHaveCount(1);
+  expect(await inSection.textContent()).toBe('brave');
+});
