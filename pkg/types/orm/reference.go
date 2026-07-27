@@ -11,6 +11,9 @@ type Reference struct {
 	DerivedCardID  string         `gorm:"column:derived_card_id;not null"`
 	ConversationID sql.NullString `gorm:"column:conversation_id"`
 	SelectionText  string         `gorm:"column:selection_text;not null"`
+	SelectionStart *int           `gorm:"column:selection_start"`
+	SelectionEnd   *int           `gorm:"column:selection_end"`
+	SelectionSeq   *int           `gorm:"column:selection_seq"`
 	CreatedAt      time.Time      `gorm:"column:created_at;not null"`
 }
 
