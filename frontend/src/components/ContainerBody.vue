@@ -13,7 +13,8 @@ import { colorForCard } from '../utils/levelPalette';
 import type { Card } from '../types/entity';
 import { useSelectionsStore } from '../stores/selections';
 import { buildCardHighlights } from '../utils/cardHighlights';
-import type { Highlight } from '../utils/highlightText';
+import { unlocatedIds, type Highlight } from '../utils/highlightText';
+import { bodyRootFor } from '../composables/useSelectionBubble';
 
 // The stitched container view. Each child gets a slim vertical color
 // bar (level palette) running its full height in the left margin.
@@ -73,6 +74,25 @@ watch(
 function highlightsFor(childID: string): Highlight[] {
   return buildCardHighlights(byID.value[childID], selectionsStore.byCard[childID]);
 }
+
+// Only a rendered body can decide staleness — the server has no notion of
+// rendered text. A container runs the same check once per rendered section,
+// each against that section's own root.
+watch(
+  [allSections, () => selectionsStore.byCard],
+  async () => {
+    await nextTick();
+    for (const child of allSections.value) {
+      if (child.deleted_at || isCollapsed(child)) continue;
+      const root = bodyRootFor(child.id);
+      if (!root) continue;
+      const msgs = highlightsFor(child.id).filter((h) => h.kind === 'message');
+      if (msgs.length === 0) continue;
+      selectionsStore.markStale(unlocatedIds(root as ParentNode, msgs));
+    }
+  },
+  { flush: 'post', deep: true },
+);
 
 // Clicking anywhere on a section's article means the reader has engaged with it,
 // so escalate its grade to DIGESTED (never lower). No collapse/expand dance

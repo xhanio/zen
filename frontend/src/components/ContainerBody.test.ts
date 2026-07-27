@@ -395,4 +395,36 @@ describe('ContainerBody reorder gesture', () => {
     // and the painter must never receive undefined.
     expect(w.find('.card-body').attributes('data-hl')).toBe('[]');
   });
+
+  it('marks a section selection stale when its offsets no longer match', async () => {
+    const parent = stub({ id: 'p', content: '' });
+    (listChildren as any).mockResolvedValue([
+      stub({ id: 'a', parent_card_id: 'p', position: 0, content: 'hello brave world' }),
+    ]);
+
+    const cards = useCardsStore();
+    cards.byID['a'] = stub({ id: 'a', content: 'hello brave world', references: [] });
+
+    const selections = useSelectionsStore();
+    // [0,5) over "hello brave world" slices to "hello", not "gamma", so this
+    // selection cannot be placed and must be reported stale.
+    selections.byCard['a'] = [{
+      message_id: 'mStale', conversation_id: 'v1', selection_text: 'gamma',
+      selection_start: 0, selection_end: 5, selection_seq: 1,
+      created_at: '2026-07-27T00:00:00Z',
+    }];
+
+    // Real CardBody, not the stub: staleness is decided from rendered text.
+    // attachTo is required because bodyRootFor resolves via document.querySelector.
+    const w = mount(ContainerBody, {
+      attachTo: document.body,
+      props: { parent },
+      global: { stubs: { RouterLink: routerLinkStub } },
+    });
+    await flushPromises();
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(selections.stale['mStale']).toBe(true);
+    w.unmount();
+  });
 });
