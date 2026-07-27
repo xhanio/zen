@@ -269,3 +269,42 @@ test('a section selection paints in the container view too', async ({ page, requ
   await expect(inSection).toHaveCount(1);
   expect(await inSection.textContent()).toBe('brave');
 });
+
+// Clicking a mark must resolve against the card that OWNS it, not the card the
+// route names. In a container those differ, and the mismatch made the click a
+// silent no-op — the mark painted, nothing happened.
+test('clicking a section underline opens its conversation in both views', async ({ page, request }) => {
+  const stamp = Date.now();
+
+  const group = await (await request.post(`${API}/groups`, {
+    data: { name: `clickroute-e2e-${stamp}` },
+  })).json();
+  const parent = await (await request.post(`${API}/cards`, {
+    data: { title: `Doc ${stamp}`, content: '', group_id: group.id },
+  })).json();
+  const section = await (await request.post(`${API}/cards`, {
+    data: {
+      title: `Sec ${stamp}`, content: 'hello brave world', format: 'markdown',
+      group_id: group.id, parent_card_id: parent.id,
+    },
+  })).json();
+  const conv = await (await request.post(`${API}/conversations`, {
+    data: { title: `clickroute ${stamp}`, anchor_kind: 'card', anchor_id: section.id },
+  })).json();
+  await request.post(`${API}/conversations/${conv.id}/messages`, {
+    data: {
+      role: 'user', content: 'what is this?', selection_text: 'brave',
+      selection_start: 6, selection_end: 11, selection_seq: 1,
+    },
+  });
+
+  // Leaf view: the card the route names IS the mark's owner.
+  await page.goto(`/c/${section.id}`);
+  await page.locator('mark.zen-sel').click();
+  await expect(page.locator('[data-test="chat-panel"]')).toBeVisible();
+
+  // Container view: the route names the parent, the mark belongs to the child.
+  await page.goto(`/c/${parent.id}`);
+  await page.locator(`[data-card-id="${section.id}"] mark.zen-sel`).click();
+  await expect(page.locator('[data-test="chat-panel"]')).toBeVisible();
+});

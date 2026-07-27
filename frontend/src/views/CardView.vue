@@ -15,7 +15,7 @@ import SectionActionsMenu from '../components/SectionActionsMenu.vue';
 import ContainerScoreStrip from '../components/ContainerScoreStrip.vue';
 import TagChipEditor from '../components/TagChipEditor.vue';
 import AskBubble from '../components/chat/AskBubble.vue';
-import { useSelectionBubble, bodyRootFor } from '../composables/useSelectionBubble';
+import { useSelectionBubble, bodyRootFor, findCardId } from '../composables/useSelectionBubble';
 import { useSelectionsStore } from '../stores/selections';
 import { unlocatedIds } from '../utils/highlightText';
 import { buildCardHighlights } from '../utils/cardHighlights';
@@ -357,6 +357,16 @@ async function scrollToMessage(messageID: string): Promise<void> {
   }
 }
 
+// Which card a clicked mark belongs to. In a leaf view that is the routed
+// card, but in a container the mark sits inside a child section and its
+// reference/selection data is stored under the CHILD's id — looking it up
+// under the route's id finds nothing and the click silently does nothing.
+// findCardId is the same ownership rule capture uses, so painting, capture,
+// and clicking all agree on who owns a span.
+function ownerOf(el: Element): string {
+  return findCardId(el) ?? props.cardId;
+}
+
 function onContentClick(event: MouseEvent) {
   // Two paths: composedPath() handles shadow-DOM marks (HtmlBody), and the
   // event.target.closest fallback handles light-DOM marks (Markdown/Text).
@@ -373,7 +383,7 @@ function onContentClick(event: MouseEvent) {
   for (const el of candidates) {
     const refId = (el as HTMLElement).dataset?.refId;
     if (!refId) continue;
-    const ref = card.value?.references?.find((r) => r.id === refId);
+    const ref = byID.value[ownerOf(el)]?.references?.find((r) => r.id === refId);
     if (!ref) return;
     if (ref.conversation_id) {
       void sidebar.openForConversation(ref.conversation_id);
@@ -389,7 +399,7 @@ function onContentClick(event: MouseEvent) {
   for (const el of candidates) {
     const msgID = (el as HTMLElement).dataset?.msgId;
     if (!msgID) continue;
-    const sel = (selectionsStore.byCard[props.cardId] ?? []).find((s) => s.message_id === msgID);
+    const sel = (selectionsStore.byCard[ownerOf(el)] ?? []).find((s) => s.message_id === msgID);
     if (!sel) return;
     void sidebar.openForConversation(sel.conversation_id).then(() => scrollToMessage(msgID));
     event.preventDefault();
