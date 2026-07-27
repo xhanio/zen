@@ -90,6 +90,14 @@ export interface Message {
   role: 'user' | 'assistant' | 'system';
   content: string;
   selection_text: string | null;
+  // Character offsets into the anchored card's rendered text, captured by the
+  // SPA at drag time. The backend has sent these since v1.1.1; they reached
+  // the SPA's type only when message selections started being painted.
+  selection_start?: number | null;
+  selection_end?: number | null;
+  // The snapshot the selection was taken against — a label, not a paint
+  // condition.
+  selection_seq?: number | null;
   session_id?: string | null;
   session_cwd?: string | null;
   created_at: string;

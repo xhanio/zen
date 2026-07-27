@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import MarkdownBody from '../MarkdownBody.vue';
 import type { Message } from '../../types/entity';
+import { useSelectionsStore } from '../../stores/selections';
 
 const props = defineProps<{
   message: Message;
@@ -10,6 +11,12 @@ const props = defineProps<{
   sessionColor?: string | null;
   state: 'sent' | 'delivered' | 'undelivered' | null;
 }>();
+
+const selections = useSelectionsStore();
+// Only set by a card body that actually rendered, so this is "known stale",
+// never "assumed stale". In the standalone chat view no card is mounted and
+// the flag simply never appears.
+const isStale = computed(() => selections.stale[props.message.id] === true);
 defineEmits<{ (e: 'resend'): void; (e: 'copy'): void }>();
 
 const isUser = computed(() => props.message.role === 'user');
@@ -60,7 +67,11 @@ const ribbonClass = computed(() =>
         v-if="message.selection_text"
         data-test="turn-quote"
         class="mb-1 border-l-2 border-accent-border bg-accent-bg px-2 py-0.5 text-[11px] italic text-muted-fg"
-      >{{ message.selection_text }}</div>
+      >{{ message.selection_text }}<span
+          v-if="isStale"
+          data-test="turn-stale"
+          class="ml-1 not-italic text-[10px] text-muted-fg opacity-70"
+        >{{ message.selection_seq != null ? `#${message.selection_seq} · ` : '' }}原文已改</span></div>
 
       <MarkdownBody v-if="isAssistant" :source="message.content" class="text-[12.5px]" />
       <div v-else class="whitespace-pre-wrap text-[12.5px] leading-relaxed text-fg">{{ message.content }}</div>

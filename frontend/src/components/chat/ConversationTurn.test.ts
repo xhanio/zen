@@ -1,4 +1,6 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { setActivePinia, createPinia } from 'pinia';
+import { useSelectionsStore } from '../../stores/selections';
 import { mount } from '@vue/test-utils';
 import ConversationTurn from './ConversationTurn.vue';
 import type { Message } from '../../types/entity';
@@ -22,6 +24,8 @@ const mountTurn = (props: TurnProps) =>
   });
 
 describe('ConversationTurn', () => {
+  beforeEach(() => setActivePinia(createPinia()));
+
   it('renders the accent ribbon for a user turn', () => {
     const w = mountTurn({ message: msg(), speaker: 'You', state: 'sent' });
     expect(w.find('[data-test="turn-ribbon"]').classes().join(' ')).toContain('bg-accent-fg');
@@ -78,5 +82,35 @@ describe('ConversationTurn', () => {
   it('exposes a stable data-message-id for scroll targeting', () => {
     const w = mountTurn({ message: msg({ id: 'm42' }), speaker: 'You', state: 'sent' });
     expect(w.find('[data-message-id="m42"]').exists()).toBe(true);
+  });
+
+  it('flags a stale selection with its snapshot number', () => {
+    useSelectionsStore().markStale(['m1']);
+    const w = mountTurn({
+      message: msg({
+        id: 'm1', selection_text: 'beta',
+        selection_start: 6, selection_end: 10, selection_seq: 3,
+      }),
+      speaker: 'You',
+      state: 'sent',
+    });
+    const flag = w.find('[data-test="turn-stale"]');
+    expect(flag.exists()).toBe(true);
+    expect(flag.text()).toContain('#3');
+    expect(flag.text()).toContain('\u539f\u6587\u5df2\u6539');
+    // The quoted text itself is still shown — the record is never lost.
+    expect(w.find('[data-test="turn-quote"]').text()).toContain('beta');
+  });
+
+  it('shows no flag when the selection is not known to be stale', () => {
+    const w = mountTurn({
+      message: msg({
+        id: 'm2', selection_text: 'beta',
+        selection_start: 6, selection_end: 10, selection_seq: 3,
+      }),
+      speaker: 'You',
+      state: 'sent',
+    });
+    expect(w.find('[data-test="turn-stale"]').exists()).toBe(false);
   });
 });
