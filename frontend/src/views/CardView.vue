@@ -313,7 +313,12 @@ const currentSnapshotSeq = computed<number | null>(
 );
 
 const cardHighlights = computed<Highlight[]>(() =>
-  (card.value?.references ?? []).map((r) => ({ id: r.id, text: r.selection_text })),
+  (card.value?.references ?? []).map((r) => ({
+    id: r.id,
+    text: r.selection_text,
+    start: r.selection_start,
+    end: r.selection_end,
+  })),
 );
 
 function onContentClick(event: MouseEvent) {

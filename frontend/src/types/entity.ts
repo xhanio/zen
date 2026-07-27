@@ -53,6 +53,13 @@ export interface Reference {
   derived_card_id: string;
   conversation_id: string | null;
   selection_text: string;
+  // Character offsets into the source card's rendered text. Null means the
+  // reference has no range and falls back to a unique-text match.
+  selection_start: number | null;
+  selection_end: number | null;
+  // The snapshot the selection was taken against — a label, not a paint
+  // condition.
+  selection_seq: number | null;
   created_at: string;
 }
 

@@ -90,12 +90,14 @@ interface RefRow {
   refId: string;
   targetId: string;
   selectionText: string;
+  selectionSeq: number | null;
 }
 const rows = computed<RefRow[]>(() =>
   refs.value.map((r) => ({
     refId: r.id,
     targetId: r.derived_card_id,
     selectionText: r.selection_text,
+    selectionSeq: r.selection_seq,
   })),
 );
 
@@ -218,8 +220,14 @@ const breadcrumbs = computed(() => {
           :style="{ borderTopWidth: '2px', borderTopColor: colorForId(row.targetId).border }"
           @click="openRow(row.targetId)"
         >
-          <h3 class="truncate font-serif text-base font-medium leading-tight text-fg">
-            {{ byID[row.targetId]?.title ?? '(loading…)' }}
+          <h3 class="flex items-baseline gap-1.5 font-serif text-base font-medium leading-tight text-fg">
+            <span class="min-w-0 flex-1 truncate">{{ byID[row.targetId]?.title ?? '(loading…)' }}</span>
+            <span
+              v-if="row.selectionSeq != null"
+              data-test="reference-seq"
+              class="shrink-0 tabular-nums text-[10px] font-normal text-muted-fg"
+              :title="`Selection taken against snapshot #${row.selectionSeq}`"
+            >#{{ row.selectionSeq }}</span>
           </h3>
           <p
             v-if="targetTileText(row.targetId)"
