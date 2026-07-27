@@ -972,3 +972,73 @@ func TestListMessages_WithoutAfterReturnsEverything(t *testing.T) {
 		t.Fatalf("got %d, want 1", len(resp.Messages))
 	}
 }
+
+// The range travels with the message: this is the only point in the system
+// that knows rendered offsets, and a reference will inherit them from here.
+func TestAppendMessage_PersistsSelectionRange_HTTP(t *testing.T) {
+	e := newEchoWithConversationRouter(t)
+
+	rec := postJSON(t, e, http.MethodPost, "/conversations", `{"title":"t"}`)
+	var conv entity.Conversation
+	if err := json.NewDecoder(rec.Body).Decode(&conv); err != nil {
+		t.Fatalf("decode conversation: %v", err)
+	}
+
+	rec = postJSON(t, e, http.MethodPost, "/conversations/"+conv.ID+"/messages",
+		`{"role":"user","content":"tighten this","selection_text":"quick","selection_start":4,"selection_end":9,"selection_seq":2}`)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("status %d body %s", rec.Code, rec.Body.String())
+	}
+	var msg entity.Message
+	if err := json.NewDecoder(rec.Body).Decode(&msg); err != nil {
+		t.Fatalf("decode message: %v", err)
+	}
+	if msg.SelectionStart == nil || *msg.SelectionStart != 4 ||
+		msg.SelectionEnd == nil || *msg.SelectionEnd != 9 ||
+		msg.SelectionSeq == nil || *msg.SelectionSeq != 2 {
+		t.Fatalf("range not returned: %+v %+v %+v", msg.SelectionStart, msg.SelectionEnd, msg.SelectionSeq)
+	}
+
+	// And it survives a read-back, not just the create response.
+	req := httptest.NewRequest(http.MethodGet, "/conversations/"+conv.ID+"/messages", nil)
+	rr := httptest.NewRecorder()
+	e.ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("list status %d body %s", rr.Code, rr.Body.String())
+	}
+	var listed struct {
+		Messages []entity.Message `json:"messages"`
+	}
+	if err := json.NewDecoder(rr.Body).Decode(&listed); err != nil {
+		t.Fatalf("decode list: %v", err)
+	}
+	if len(listed.Messages) != 1 {
+		t.Fatalf("want 1 message, got %d", len(listed.Messages))
+	}
+	if listed.Messages[0].SelectionStart == nil || *listed.Messages[0].SelectionStart != 4 {
+		t.Fatalf("range not persisted: %+v", listed.Messages[0].SelectionStart)
+	}
+}
+
+// A message with no selection stores no range — the no-range path.
+func TestAppendMessage_NoSelectionRange_HTTP(t *testing.T) {
+	e := newEchoWithConversationRouter(t)
+	rec := postJSON(t, e, http.MethodPost, "/conversations", `{"title":"t"}`)
+	var conv entity.Conversation
+	if err := json.NewDecoder(rec.Body).Decode(&conv); err != nil {
+		t.Fatalf("decode conversation: %v", err)
+	}
+
+	rec = postJSON(t, e, http.MethodPost, "/conversations/"+conv.ID+"/messages",
+		`{"role":"user","content":"plain question"}`)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("status %d body %s", rec.Code, rec.Body.String())
+	}
+	var msg entity.Message
+	if err := json.NewDecoder(rec.Body).Decode(&msg); err != nil {
+		t.Fatalf("decode message: %v", err)
+	}
+	if msg.SelectionStart != nil || msg.SelectionEnd != nil || msg.SelectionSeq != nil {
+		t.Fatalf("expected no range, got %+v", msg)
+	}
+}

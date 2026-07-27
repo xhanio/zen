@@ -3,7 +3,7 @@ package api
 import "github.com/xhanio/zen/pkg/types/entity"
 
 type CreateConversationRequest struct {
-	Title      string  `json:"title" validate:"max=80"`
+	Title string `json:"title" validate:"max=80"`
 	// oneof mirrors the conversations CHECK constraint, which migration
 	// 010_v06_card_only narrowed to card/group. "document" lingered here after
 	// that and was accepted by this validator only to be rejected a layer down
@@ -20,6 +20,14 @@ type AppendMessageRequest struct {
 	Role          string  `json:"role" validate:"required,oneof=user assistant system"`
 	Content       string  `json:"content" validate:"required,max=1048576"`
 	SelectionText *string `json:"selection_text" validate:"omitempty,max=10000"`
+
+	// SelectionStart/End are character offsets into the anchored card's
+	// rendered text, captured by the SPA at drag time. This is the only point
+	// in the system that knows them: the agent sees source, not rendered
+	// output. SelectionSeq labels the snapshot they were taken against.
+	SelectionStart *int `json:"selection_start" validate:"omitempty,min=0"`
+	SelectionEnd   *int `json:"selection_end" validate:"omitempty,min=0"`
+	SelectionSeq   *int `json:"selection_seq" validate:"omitempty,min=1"`
 
 	// TargetSessionID addresses this message at one live Claude Code session.
 	// Absent or empty means "nobody" — the message posts undelivered. It is

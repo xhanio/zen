@@ -301,7 +301,7 @@ type cardReorderOut struct {
 func (m *manager) registerCardTools() {
 	mcpsdk.AddTool(m.server, &mcpsdk.Tool{
 		Name:        "card.create",
-		Description: `Create a new card. Pass tags[] to attach existing or newly-created tags. For derived cards (spun off from a conversation), pass parent_card_id and source_conversation_id. When you create a card derived from a user's selection in another card, anchor it inline: set parent_card_id + source_conversation_id (optional) + reference: {selection_text: "<verbatim>"}. The backend creates the highlight in the same transaction; you do NOT need a follow-up reference.create. Use standalone reference.create only when adding a reference to a card that was created earlier (back-fill case). "format" is optional and may be "html", "markdown", or "text"; markdown renders with full styling (headings, lists, code, tables, blockquotes). Follow the target group's "rule" for the required format — default to "markdown" when the rule is silent, and use "text" only for literal preformatted content that must not be interpreted. "level_entry_id" attaches the card to an existing catalog entry in its group — call group.list to look up ids. To add a new catalog entry, call group.update first with the desired weight+name; the response includes the assigned id. "genesis" is a free-form human-readable note about where this card came from; defaults to "". **Genesis MUST NOT include raw card IDs, conversation IDs, or any ULID.** Show provenance via a title breadcrumb instead — e.g. "Decomposed from Zen roadmap - v0.12 planning - v0.12 spec" or "Extracted from user chat about SectionGradePill". Titles are what the reader sees on the tile; IDs are unreadable noise. "summary" is an optional short line (aim for <30 words; hard cap 500 chars) shown on the card tile in place of the auto content preview — omit to fall back to the preview. The target group may define a "rule" you MUST satisfy (language, format, abstraction level). Read it via group.get before composing; the result echoes "group_rule" when the destination group has one — if it is non-empty, verify the card conforms and card.update it if not. When this edit is caused by a Zen conversation message, pass "conversation_id" from the channel event so the change is recorded against that conversation. Omit it for edits not driven by a Zen conversation.`,
+		Description: `Create a new card. Pass tags[] to attach existing or newly-created tags. For derived cards (spun off from a conversation), pass parent_card_id and source_conversation_id. When you create a card derived from a user's selection in another card, anchor it inline: set parent_card_id + source_conversation_id (optional) + reference: {message_id: "<the channel event's message_id>"} — the backend copies that message's exact selection text and its character range, so you never retype the excerpt. Use reference: {selection_text: "<verbatim>"} only when the selection did not come from a Zen UI drag. The backend creates the highlight in the same transaction; you do NOT need a follow-up reference.create. Use standalone reference.create only when adding a reference to a card that was created earlier (back-fill case). "format" is optional and may be "html", "markdown", or "text"; markdown renders with full styling (headings, lists, code, tables, blockquotes). Follow the target group's "rule" for the required format — default to "markdown" when the rule is silent, and use "text" only for literal preformatted content that must not be interpreted. "level_entry_id" attaches the card to an existing catalog entry in its group — call group.list to look up ids. To add a new catalog entry, call group.update first with the desired weight+name; the response includes the assigned id. "genesis" is a free-form human-readable note about where this card came from; defaults to "". **Genesis MUST NOT include raw card IDs, conversation IDs, or any ULID.** Show provenance via a title breadcrumb instead — e.g. "Decomposed from Zen roadmap - v0.12 planning - v0.12 spec" or "Extracted from user chat about SectionGradePill". Titles are what the reader sees on the tile; IDs are unreadable noise. "summary" is an optional short line (aim for <30 words; hard cap 500 chars) shown on the card tile in place of the auto content preview — omit to fall back to the preview. The target group may define a "rule" you MUST satisfy (language, format, abstraction level). Read it via group.get before composing; the result echoes "group_rule" when the destination group has one — if it is non-empty, verify the card conforms and card.update it if not. When this edit is caused by a Zen conversation message, pass "conversation_id" from the channel event so the change is recorded against that conversation. Omit it for edits not driven by a Zen conversation.`,
 	}, func(ctx context.Context, _ *mcpsdk.CallToolRequest, in cardCreateIn) (*mcpsdk.CallToolResult, cardCreateOut, error) {
 		c, err := m.backend.Card().Create(ctx, api.CreateCardRequest{
 			Title: in.Title, Content: in.Content, Format: in.Format,
@@ -601,10 +601,11 @@ func (m *manager) registerComposeTool() {
 // ---- reference ----
 
 type referenceCreateIn struct {
-	SourceCardID   string `json:"source_card_id"`
-	DerivedCardID  string `json:"derived_card_id"`
-	ConversationID string `json:"conversation_id"`
-	SelectionText  string `json:"selection_text"`
+	SourceCardID   string  `json:"source_card_id"`
+	DerivedCardID  string  `json:"derived_card_id"`
+	ConversationID string  `json:"conversation_id"`
+	SelectionText  string  `json:"selection_text,omitempty"`
+	MessageID      *string `json:"message_id,omitempty"`
 }
 type referenceOut struct {
 	Reference *entity.Reference `json:"reference"`
@@ -625,13 +626,14 @@ type referenceDeleteOut struct{}
 func (m *manager) registerReferenceTools() {
 	mcpsdk.AddTool(m.server, &mcpsdk.Tool{
 		Name:        "reference.create",
-		Description: `Anchor an AI-derived card to the verbatim selection the user highlighted in the source card. Call this AFTER card.create succeeds for the derivation. Pass the SAME selection_text the user provided — verbatim, not paraphrased. The reference produces a clickable highlight on the source card in the SPA that opens the conversation that produced the derivation.`,
+		Description: `Anchor an AI-derived card to the selection the user highlighted in the source card. Call this AFTER card.create succeeds for the derivation. The reference produces a clickable highlight on the source card in the SPA that opens the conversation that produced the derivation. When the selection came from the user's Zen UI, pass "message_id" from the channel event and omit "selection_text": the backend copies that message's exact excerpt AND its character range, so the highlight lands on the precise span the user dragged. Do not retype the excerpt — any normalization (smart quotes, collapsed whitespace, a trimmed newline, full-width punctuation) yields a reference that looks right but never paints. Supply "selection_text" yourself only when back-filling a reference that did not originate from a UI selection; such a reference has no range and paints only if its text occurs exactly once in the card.`,
 	}, func(ctx context.Context, _ *mcpsdk.CallToolRequest, in referenceCreateIn) (*mcpsdk.CallToolResult, referenceOut, error) {
 		r, err := m.backend.Reference().Create(ctx, api.CreateReferenceRequest{
 			SourceCardID:   in.SourceCardID,
 			DerivedCardID:  in.DerivedCardID,
 			ConversationID: in.ConversationID,
 			SelectionText:  in.SelectionText,
+			MessageID:      in.MessageID,
 		})
 		if err != nil {
 			return nil, referenceOut{}, errors.Wrap(err)

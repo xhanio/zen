@@ -152,6 +152,9 @@ func (m *manager) AppendMessage(ctx context.Context, conversationID, role, conte
 			Role:           role,
 			Content:        content,
 			SelectionText:  selectionText,
+			SelectionStart: appendOpts.SelectionStart,
+			SelectionEnd:   appendOpts.SelectionEnd,
+			SelectionSeq:   appendOpts.SelectionSeq,
 			CreatedAt:      now,
 		}
 		if appendOpts.SessionID != "" {

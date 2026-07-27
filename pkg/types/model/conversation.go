@@ -19,6 +19,12 @@ type AppendOptions struct {
 	// event. Empty SessionID means the message carries no attribution.
 	SessionID  string
 	SessionCwd string
+
+	// SelectionStart/End/Seq travel with a user message that carried a text
+	// selection. A reference created against this message inherits them.
+	SelectionStart *int
+	SelectionEnd   *int
+	SelectionSeq   *int
 }
 
 type AppendOption func(*AppendOptions)
@@ -32,6 +38,15 @@ func WithTargetSession(sessionID string) AppendOption {
 // WithSession attributes the stored message to a session and snapshots its cwd.
 func WithSession(sessionID, cwd string) AppendOption {
 	return func(o *AppendOptions) { o.SessionID = sessionID; o.SessionCwd = cwd }
+}
+
+// WithSelectionRange records where in the anchored card's rendered text the
+// selection sat. Only the SPA can compute these, so they arrive with the
+// message and never from the agent.
+func WithSelectionRange(start, end, seq *int) AppendOption {
+	return func(o *AppendOptions) {
+		o.SelectionStart, o.SelectionEnd, o.SelectionSeq = start, end, seq
+	}
 }
 
 type Conversation interface {

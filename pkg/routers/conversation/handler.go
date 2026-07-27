@@ -170,6 +170,12 @@ func (r *router) AppendMessage(c api.Context) error {
 		}
 	}
 
+	// Offsets ride along with the selection they describe. Only the SPA can
+	// compute them, so they arrive here or not at all.
+	if req.SelectionStart != nil && req.SelectionEnd != nil {
+		opts = append(opts, model.WithSelectionRange(req.SelectionStart, req.SelectionEnd, req.SelectionSeq))
+	}
+
 	msg, err := r.svc.AppendMessage(c, id, req.Role, req.Content, req.SelectionText, opts...)
 	if err != nil {
 		return errors.Wrap(err)
