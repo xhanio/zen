@@ -18,6 +18,7 @@ import AskBubble from '../components/chat/AskBubble.vue';
 import { useSelectionBubble, bodyRootFor } from '../composables/useSelectionBubble';
 import { useSelectionsStore } from '../stores/selections';
 import { unlocatedIds } from '../utils/highlightText';
+import { buildCardHighlights } from '../utils/cardHighlights';
 import { useChatSidebar } from '../composables/useChatSidebar';
 import { useTilePrefsStore } from '../stores/tilePrefs';
 import { useContainerFilterStore } from '../stores/containerFilter';
@@ -315,26 +316,9 @@ const currentSnapshotSeq = computed<number | null>(
   () => snapshotsStore.byCard[props.cardId]?.[0]?.seq ?? null,
 );
 
-// References first, messages second: underlines then nest inside reference
-// spans instead of splitting them. Safe because renderedText traverses INTO
-// existing marks, so offsets measured before painting stay valid.
-const cardHighlights = computed<Highlight[]>(() => [
-  ...(card.value?.references ?? []).map((r) => ({
-    id: r.id,
-    text: r.selection_text,
-    start: r.selection_start,
-    end: r.selection_end,
-    kind: 'reference' as const,
-  })),
-  ...(selectionsStore.byCard[props.cardId] ?? []).map((s) => ({
-    id: s.message_id,
-    text: s.selection_text,
-    start: s.selection_start,
-    end: s.selection_end,
-    kind: 'message' as const,
-    requireRange: true,
-  })),
-]);
+const cardHighlights = computed<Highlight[]>(() =>
+  buildCardHighlights(card.value, selectionsStore.byCard[props.cardId]),
+);
 
 watch(
   () => props.cardId,
