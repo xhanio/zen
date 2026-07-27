@@ -26,7 +26,7 @@ const ribbonClass = computed(() =>
 </script>
 
 <template>
-  <div data-test="turn" class="group flex gap-2.5">
+  <div data-test="turn" :data-message-id="message.id" class="group flex gap-2.5">
     <div data-test="turn-ribbon" class="w-[3px] shrink-0 self-stretch rounded-full" :class="ribbonClass"></div>
     <div class="min-w-0 flex-1">
       <div class="mb-1 flex items-center gap-2">

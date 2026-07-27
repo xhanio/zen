@@ -74,4 +74,9 @@ describe('ConversationTurn', () => {
     await w.find('[data-test="turn-copy"]').trigger('click');
     expect(w.emitted('copy')).toBeTruthy();
   });
+
+  it('exposes a stable data-message-id for scroll targeting', () => {
+    const w = mountTurn({ message: msg({ id: 'm42' }), speaker: 'You', state: 'sent' });
+    expect(w.find('[data-message-id="m42"]').exists()).toBe(true);
+  });
 });

@@ -359,6 +359,20 @@ watch(
   { flush: 'post' },
 );
 
+// The thread mounts asynchronously after the conversation loads, so poll
+// briefly for the anchor rather than assuming it is already there.
+async function scrollToMessage(messageID: string): Promise<void> {
+  for (let i = 0; i < 20; i++) {
+    await nextTick();
+    const el = document.querySelector(`[data-message-id="${messageID}"]`);
+    if (el) {
+      el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      return;
+    }
+    await new Promise((r) => setTimeout(r, 50));
+  }
+}
+
 function onContentClick(event: MouseEvent) {
   // Two paths: composedPath() handles shadow-DOM marks (HtmlBody), and the
   // event.target.closest fallback handles light-DOM marks (Markdown/Text).
@@ -382,6 +396,18 @@ function onContentClick(event: MouseEvent) {
     } else {
       void router.push({ name: 'card', params: { cardId: ref.derived_card_id } });
     }
+    event.preventDefault();
+    return;
+  }
+
+  // Second pass: message underlines. References resolve first, so where the
+  // two overlap the reference keeps the click.
+  for (const el of candidates) {
+    const msgID = (el as HTMLElement).dataset?.msgId;
+    if (!msgID) continue;
+    const sel = (selectionsStore.byCard[props.cardId] ?? []).find((s) => s.message_id === msgID);
+    if (!sel) return;
+    void sidebar.openForConversation(sel.conversation_id).then(() => scrollToMessage(msgID));
     event.preventDefault();
     return;
   }
