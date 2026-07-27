@@ -3,7 +3,10 @@ package api
 import "github.com/xhanio/zen/pkg/types/entity"
 
 type ReferenceSpec struct {
-	SelectionText string `json:"selection_text" validate:"required,min=1,max=5000"`
+	SelectionText string `json:"selection_text" validate:"omitempty,max=5000"`
+	// MessageID inherits the selection text and its character range from the
+	// message the user's drag produced. Prefer it over retyping the excerpt.
+	MessageID *string `json:"message_id,omitempty" validate:"omitempty,len=26"`
 }
 
 type CreateCardRequest struct {

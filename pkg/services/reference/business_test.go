@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/xhanio/errors"
 
@@ -21,7 +22,15 @@ import (
 
 func newRefSvc(t *testing.T) (svc model.Reference, src, der, conv string) {
 	t.Helper()
-	repo := repository.New(testutil.NewDB(t))
+	svc, _, src, der, conv = newRefSvcWithRepo(t)
+	return
+}
+
+// newRefSvcWithRepo also hands back the repository so a test can seed the
+// message a reference will inherit its range from.
+func newRefSvcWithRepo(t *testing.T) (svc model.Reference, repo repository.Repository, src, der, conv string) {
+	t.Helper()
+	repo = repository.New(testutil.NewDB(t))
 	ctx := context.Background()
 	g := &entity.Group{ID: ulidutil.New(), Name: "g"}
 	_ = repo.CreateGroup(ctx, g)
@@ -133,5 +142,110 @@ func TestReference_Delete_RemovesRow(t *testing.T) {
 	}
 	if _, err := svc.Get(ctx, r.ID); !errors.Is(err, errors.NotFound) {
 		t.Fatalf("expected NotFound after delete, got %v", err)
+	}
+}
+
+func seedSelectionMessage(t *testing.T, repo repository.Repository, convID, text string, start, end, seq *int) string {
+	t.Helper()
+	m := &entity.Message{
+		ID: ulidutil.New(), ConversationID: convID, Role: "user", Content: "tighten this",
+		SelectionText: &text, CreatedAt: time.Now(),
+		SelectionStart: start, SelectionEnd: end, SelectionSeq: seq,
+	}
+	if err := repo.CreateMessage(context.Background(), m); err != nil {
+		t.Fatalf("CreateMessage: %v", err)
+	}
+	return m.ID
+}
+
+func TestReference_Create_InheritsRangeAndTextFromMessage(t *testing.T) {
+	svc, repo, src, der, conv := newRefSvcWithRepo(t)
+	start, end, seq := 12, 20, 4
+	msgID := seedSelectionMessage(t, repo, conv, "the exact words", &start, &end, &seq)
+
+	got, err := svc.Create(context.Background(), api.CreateReferenceRequest{
+		SourceCardID: src, DerivedCardID: der, ConversationID: conv,
+		// A retyped excerpt that differs from what the SPA captured. The
+		// message's copy must win — that is the point of inheriting.
+		SelectionText: "the  exact words",
+		MessageID:     &msgID,
+	})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	if got.SelectionText != "the exact words" {
+		t.Fatalf("selection_text = %q, want the message's copy", got.SelectionText)
+	}
+	if got.SelectionStart == nil || *got.SelectionStart != 12 || got.SelectionEnd == nil || *got.SelectionEnd != 20 {
+		t.Fatalf("range not inherited: %+v %+v", got.SelectionStart, got.SelectionEnd)
+	}
+	if got.SelectionSeq == nil || *got.SelectionSeq != 4 {
+		t.Fatalf("seq not inherited: %+v", got.SelectionSeq)
+	}
+}
+
+func TestReference_Create_WithoutMessageIDStoresNoRange(t *testing.T) {
+	svc, _, src, der, conv := newRefSvcWithRepo(t)
+	got, err := svc.Create(context.Background(), api.CreateReferenceRequest{
+		SourceCardID: src, DerivedCardID: der, ConversationID: conv,
+		SelectionText: "back-filled by hand",
+	})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	if got.SelectionText != "back-filled by hand" {
+		t.Fatalf("selection_text = %q", got.SelectionText)
+	}
+	if got.SelectionStart != nil || got.SelectionEnd != nil {
+		t.Fatalf("expected no range, got %+v %+v", got.SelectionStart, got.SelectionEnd)
+	}
+}
+
+// A message that predates this feature carries text but no offsets: the text
+// still wins over the caller's retype, the range is simply absent.
+func TestReference_Create_MessageWithoutRangeStillInheritsText(t *testing.T) {
+	svc, repo, src, der, conv := newRefSvcWithRepo(t)
+	msgID := seedSelectionMessage(t, repo, conv, "older selection", nil, nil, nil)
+
+	got, err := svc.Create(context.Background(), api.CreateReferenceRequest{
+		SourceCardID: src, DerivedCardID: der, ConversationID: conv,
+		SelectionText: "retyped", MessageID: &msgID,
+	})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	if got.SelectionText != "older selection" {
+		t.Fatalf("selection_text = %q, want the message's copy", got.SelectionText)
+	}
+	if got.SelectionStart != nil {
+		t.Fatalf("expected no range, got %v", *got.SelectionStart)
+	}
+}
+
+func TestReference_Create_RejectsMessageFromAnotherConversation(t *testing.T) {
+	svc, repo, src, der, conv := newRefSvcWithRepo(t)
+	other := &entity.Conversation{ID: ulidutil.New(), Title: "other", CreatedAt: time.Now(), LastMessageAt: time.Now()}
+	if err := repo.CreateConversation(context.Background(), other); err != nil {
+		t.Fatalf("CreateConversation: %v", err)
+	}
+	start, end := 1, 3
+	msgID := seedSelectionMessage(t, repo, other.ID, "elsewhere", &start, &end, nil)
+
+	// SelectionText is supplied so this cannot pass via the empty-text guard —
+	// only the conversation mismatch can reject it.
+	if _, err := svc.Create(context.Background(), api.CreateReferenceRequest{
+		SourceCardID: src, DerivedCardID: der, ConversationID: conv,
+		SelectionText: "elsewhere", MessageID: &msgID,
+	}); err == nil {
+		t.Fatalf("expected an error: the message belongs to a different conversation")
+	}
+}
+
+func TestReference_Create_RejectsNoTextAndNoMessage(t *testing.T) {
+	svc, _, src, der, conv := newRefSvcWithRepo(t)
+	if _, err := svc.Create(context.Background(), api.CreateReferenceRequest{
+		SourceCardID: src, DerivedCardID: der, ConversationID: conv,
+	}); err == nil {
+		t.Fatalf("expected an error: nothing to anchor")
 	}
 }

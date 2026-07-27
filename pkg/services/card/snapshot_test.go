@@ -3,6 +3,7 @@ package card_test
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/xhanio/zen/pkg/services/repository"
 	"github.com/xhanio/zen/pkg/types/api"
@@ -164,5 +165,53 @@ func TestSnapshot_EmptyTrashDeletesSnapshots(t *testing.T) {
 	}
 	if got := snapshotsFor(t, repo, c.ID); len(got) != 0 {
 		t.Fatalf("empty trash must remove snapshots; got %d", len(got))
+	}
+}
+
+// The inline reference on card.create inherits from the message exactly as
+// reference.create does — the agent passes an id, never a retyped excerpt.
+func TestInlineReference_InheritsFromMessage(t *testing.T) {
+	svc, repo, groupID := newCardCtx(t)
+	ctx := context.Background()
+
+	source, err := svc.Create(ctx, "source", "alpha beta gamma", groupID, nil, nil, nil,
+		nil, nil, nil, nil, nil, entity.SnapshotAttribution{})
+	if err != nil {
+		t.Fatalf("Create source: %v", err)
+	}
+	conv := &entity.Conversation{ID: ulidutil.New(), Title: "c", CreatedAt: time.Now(), LastMessageAt: time.Now()}
+	if err := repo.CreateConversation(ctx, conv); err != nil {
+		t.Fatalf("CreateConversation: %v", err)
+	}
+	start, end, seq := 6, 10, 1
+	captured := "beta"
+	msg := &entity.Message{
+		ID: ulidutil.New(), ConversationID: conv.ID, Role: "user", Content: "what is this?",
+		SelectionText: &captured, CreatedAt: time.Now(),
+		SelectionStart: &start, SelectionEnd: &end, SelectionSeq: &seq,
+	}
+	if err := repo.CreateMessage(ctx, msg); err != nil {
+		t.Fatalf("CreateMessage: %v", err)
+	}
+
+	derived, err := svc.Create(ctx, "derived", "spun off", groupID, nil, &source.ID, &conv.ID,
+		nil, nil, nil, &api.ReferenceSpec{MessageID: &msg.ID}, nil, entity.SnapshotAttribution{})
+	if err != nil {
+		t.Fatalf("Create derived: %v", err)
+	}
+
+	refs, err := repo.ListReferences(ctx, api.ListReferencesRequest{DerivedCardID: &derived.ID})
+	if err != nil {
+		t.Fatalf("ListReferences: %v", err)
+	}
+	if len(refs) != 1 {
+		t.Fatalf("want 1 reference, got %d", len(refs))
+	}
+	r := refs[0]
+	if r.SelectionText != "beta" {
+		t.Fatalf("selection_text = %q, want the message's copy", r.SelectionText)
+	}
+	if r.SelectionStart == nil || *r.SelectionStart != 6 || r.SelectionEnd == nil || *r.SelectionEnd != 10 {
+		t.Fatalf("range not inherited: %+v %+v", r.SelectionStart, r.SelectionEnd)
 	}
 }

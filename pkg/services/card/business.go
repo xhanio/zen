@@ -106,8 +106,8 @@ func (m *manager) Create(ctx context.Context, title, content, groupID string, ta
 		if parentCardID == nil {
 			return nil, errors.BadRequest.Newf("reference requires parent_card_id")
 		}
-		if reference.SelectionText == "" {
-			return nil, errors.BadRequest.Newf("reference.selection_text is required")
+		if reference.SelectionText == "" && reference.MessageID == nil {
+			return nil, errors.BadRequest.Newf("reference requires selection_text or message_id")
 		}
 		if len(reference.SelectionText) > 5000 {
 			return nil, errors.BadRequest.Newf("reference.selection_text exceeds 5000 chars")
@@ -215,6 +215,22 @@ func (m *manager) Create(ctx context.Context, title, content, groupID string, ta
 				ConversationID: sourceConversationID,
 				SelectionText:  reference.SelectionText,
 				CreatedAt:      time.Now(),
+			}
+			// Same inheritance as reference.Create: the message holds the copy
+			// the SPA captured, along with the offsets only it could know.
+			if reference.MessageID != nil {
+				msg, err := m.repo.GetMessage(txCtx, *reference.MessageID)
+				if err != nil {
+					return errors.Wrap(err)
+				}
+				if msg.SelectionText != nil && *msg.SelectionText != "" {
+					ref.SelectionText = *msg.SelectionText
+				}
+				ref.SelectionStart, ref.SelectionEnd, ref.SelectionSeq =
+					msg.SelectionStart, msg.SelectionEnd, msg.SelectionSeq
+			}
+			if ref.SelectionText == "" {
+				return errors.BadRequest.Newf("reference.message_id %q carries no selection text", *reference.MessageID)
 			}
 			if err := m.repo.CreateReference(txCtx, ref); err != nil {
 				return errors.Wrap(err)
