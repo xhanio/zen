@@ -169,3 +169,15 @@ export interface SnapshotDetail {
   snapshot: CardSnapshot;
   previous: CardSnapshot | null;
 }
+
+// One message's selected span in a card's rendered text. Only messages that
+// captured real offsets appear — the endpoint filters the rest out.
+export interface CardSelection {
+  message_id: string;
+  conversation_id: string;
+  selection_text: string;
+  selection_start: number;
+  selection_end: number;
+  selection_seq: number | null;
+  created_at: string;
+}

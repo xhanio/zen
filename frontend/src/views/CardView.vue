@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { useRenderedSections } from '../composables/useRenderedSections';
 import { storeToRefs } from 'pinia';
 import { useRoute, useRouter } from 'vue-router';
@@ -15,7 +15,9 @@ import SectionActionsMenu from '../components/SectionActionsMenu.vue';
 import ContainerScoreStrip from '../components/ContainerScoreStrip.vue';
 import TagChipEditor from '../components/TagChipEditor.vue';
 import AskBubble from '../components/chat/AskBubble.vue';
-import { useSelectionBubble } from '../composables/useSelectionBubble';
+import { useSelectionBubble, bodyRootFor } from '../composables/useSelectionBubble';
+import { useSelectionsStore } from '../stores/selections';
+import { unlocatedIds } from '../utils/highlightText';
 import { useChatSidebar } from '../composables/useChatSidebar';
 import { useTilePrefsStore } from '../stores/tilePrefs';
 import { useContainerFilterStore } from '../stores/containerFilter';
@@ -39,6 +41,7 @@ const selection = useSelectionBubble(contentRoot);
 const router = useRouter();
 const route = useRoute();
 const snapshotsStore = useSnapshotsStore();
+const selectionsStore = useSelectionsStore();
 const cardsStore = useCardsStore();
 const tagsStore = useTagsStore();
 const sidebar = useChatSidebar();
@@ -312,13 +315,48 @@ const currentSnapshotSeq = computed<number | null>(
   () => snapshotsStore.byCard[props.cardId]?.[0]?.seq ?? null,
 );
 
-const cardHighlights = computed<Highlight[]>(() =>
-  (card.value?.references ?? []).map((r) => ({
+// References first, messages second: underlines then nest inside reference
+// spans instead of splitting them. Safe because renderedText traverses INTO
+// existing marks, so offsets measured before painting stay valid.
+const cardHighlights = computed<Highlight[]>(() => [
+  ...(card.value?.references ?? []).map((r) => ({
     id: r.id,
     text: r.selection_text,
     start: r.selection_start,
     end: r.selection_end,
+    kind: 'reference' as const,
   })),
+  ...(selectionsStore.byCard[props.cardId] ?? []).map((s) => ({
+    id: s.message_id,
+    text: s.selection_text,
+    start: s.selection_start,
+    end: s.selection_end,
+    kind: 'message' as const,
+    requireRange: true,
+  })),
+]);
+
+watch(
+  () => props.cardId,
+  (id) => {
+    if (id) void selectionsStore.load(id);
+  },
+  { immediate: true },
+);
+
+// Only a rendered body can decide staleness — the server has no notion of
+// rendered text. Runs after paint, so the DOM is in its final shape.
+watch(
+  [() => selectionsStore.byCard[props.cardId], () => card.value?.content],
+  async () => {
+    await nextTick();
+    const root = bodyRootFor(props.cardId);
+    if (!root) return;
+    const msgs = cardHighlights.value.filter((h) => h.kind === 'message');
+    if (msgs.length === 0) return;
+    selectionsStore.markStale(unlocatedIds(root as ParentNode, msgs));
+  },
+  { flush: 'post' },
 );
 
 function onContentClick(event: MouseEvent) {

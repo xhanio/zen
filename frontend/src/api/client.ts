@@ -1,4 +1,4 @@
-import type { Group, Tag, Card, SearchHit, Conversation, Message, ConversationEvent, CardSnapshot, SnapshotDetail } from '../types/entity';
+import type { Group, Tag, Card, SearchHit, Conversation, Message, ConversationEvent, CardSnapshot, SnapshotDetail, CardSelection } from '../types/entity';
 import {
   BackendError,
   type BackendErrorBody,
@@ -243,7 +243,7 @@ export function dispatchMessage(
 
 export type {
   Group, Tag, Card, SearchHit, SearchResponse,
-  Conversation, Message, ConversationEvent,
+  Conversation, Message, ConversationEvent, CardSelection,
 };
 export { BackendError };
 
@@ -258,4 +258,8 @@ export function listSnapshots(
 
 export function getSnapshot(id: string): Promise<SnapshotDetail> {
   return request('GET', `/snapshots/${encodeURIComponent(id)}`);
+}
+
+export function listCardSelections(cardID: string): Promise<{ selections: CardSelection[] }> {
+  return request('GET', `/cards/${encodeURIComponent(cardID)}/selections`);
 }
