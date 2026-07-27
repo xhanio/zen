@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { rangeInside, findCardId, measureSelection } from './useSelectionBubble';
+import { rangeInside, findCardId, measureSelection, bodyRootFor } from './useSelectionBubble';
 
 describe('rangeInside', () => {
   it('returns true when both endpoints are inside target', () => {
@@ -190,5 +190,51 @@ describe('measureSelection', () => {
   it('records no range when the card body is not in the document', () => {
     const range = document.createRange();
     expect(measureSelection('absent', range, 'brave')).toBeNull();
+  });
+});
+
+describe('bodyRootFor inside a container section', () => {
+  // A section in container view renders its TITLE through HtmlBody too, and
+  // that host precedes the body host in the DOM. Picking the first match
+  // measured every drag against the title, so the range came out null and no
+  // underline was ever recorded for a selection made in a container.
+  function section(id: string) {
+    const el = document.createElement('section');
+    el.setAttribute('data-card-id', id);
+
+    const titleHost = document.createElement('div');
+    titleHost.className = 'html-body-host zen-title-html';
+    el.appendChild(titleHost);
+    const titleRoot = titleHost.attachShadow({ mode: 'open' });
+    titleRoot.innerHTML = '<h2>决策</h2>';
+
+    const bodyHost = document.createElement('div');
+    bodyHost.className = 'html-body-host';
+    el.appendChild(bodyHost);
+    const bodyRoot = bodyHost.attachShadow({ mode: 'open' });
+    bodyRoot.innerHTML = '<p>hello brave world</p>';
+
+    document.body.appendChild(el);
+    return { el, titleRoot, bodyRoot };
+  }
+
+  it('returns the body shadow root, not the title one', () => {
+    const { el, bodyRoot } = section('sec1');
+    expect(bodyRootFor('sec1')).toBe(bodyRoot);
+    el.remove();
+  });
+
+  it('still works for a leaf card with only a body host', () => {
+    const el = document.createElement('section');
+    el.setAttribute('data-card-id', 'leaf1');
+    const host = document.createElement('div');
+    host.className = 'html-body-host';
+    el.appendChild(host);
+    const root = host.attachShadow({ mode: 'open' });
+    root.innerHTML = '<p>leaf body</p>';
+    document.body.appendChild(el);
+
+    expect(bodyRootFor('leaf1')).toBe(root);
+    el.remove();
   });
 });

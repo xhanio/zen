@@ -66,7 +66,14 @@ export function bodyRootFor(cardID: string | null, within: ParentNode = document
   if (!cardID) return null;
   const el = within.querySelector(`[data-card-id="${cardID}"]`);
   if (!el) return null;
-  const shadowHost = el.querySelector('.html-body-host') as HTMLElement | null;
+  // A section in container view renders its TITLE through HtmlBody as well,
+  // and that host comes first in the DOM. Taking any .html-body-host measured
+  // body selections against the title's shadow root, so the range resolved to
+  // null and the selection was stored with no offsets at all. The title opts
+  // out with .zen-title-html; a leaf card has only the body host either way.
+  const shadowHost = el.querySelector(
+    '.html-body-host:not(.zen-title-html)',
+  ) as HTMLElement | null;
   if (shadowHost?.shadowRoot) return shadowHost.shadowRoot;
   return el.querySelector('[data-body-root]') ?? el;
 }

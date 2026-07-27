@@ -308,3 +308,64 @@ test('clicking a section underline opens its conversation in both views', async 
   await page.locator(`[data-card-id="${section.id}"] mark.zen-sel`).click();
   await expect(page.locator('[data-test="chat-panel"]')).toBeVisible();
 });
+
+// Capture inside a CONTAINER. A section renders its title through HtmlBody
+// too, so the section holds two shadow hosts; measuring against the first one
+// (the title) produced a null range and the selection was stored with no
+// offsets — visible to the user as "I selected it but no underline appeared".
+test('a drag inside a container section records the offsets', async ({ page, request }) => {
+  const stamp = Date.now();
+
+  const group = await (await request.post(`${API}/groups`, {
+    data: { name: `containercapture-e2e-${stamp}` },
+  })).json();
+  const parent = await (await request.post(`${API}/cards`, {
+    data: { title: `Doc ${stamp}`, content: '', group_id: group.id },
+  })).json();
+  const section = await (await request.post(`${API}/cards`, {
+    data: {
+      title: `Sec ${stamp}`,
+      content: '<p>Hello <strong>brave</strong> world</p>',
+      format: 'html',
+      group_id: group.id,
+      parent_card_id: parent.id,
+    },
+  })).json();
+
+  // Open the CONTAINER, not the section.
+  await page.goto(`/c/${parent.id}`);
+  const sectionSel = `[data-card-id="${section.id}"]`;
+  await expect(page.locator(`${sectionSel} .html-body-host`).first()).toBeAttached();
+
+  // Two hosts live in this section: the title's and the body's.
+  const hostCount = await page.locator(`${sectionSel} .html-body-host`).count();
+  expect(hostCount).toBeGreaterThan(1);
+
+  const box = await page.evaluate((sel) => {
+    const host = document.querySelector(
+      `${sel} .html-body-host:not(.zen-title-html)`,
+    ) as HTMLElement;
+    const r = host.shadowRoot!.querySelector('p')!.getBoundingClientRect();
+    return { x: r.x, y: r.y, w: r.width, h: r.height };
+  }, sectionSel);
+
+  await page.mouse.move(box.x + 2, box.y + box.h / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.w - 2, box.y + box.h / 2, { steps: 15 });
+  await page.mouse.up();
+
+  const selected = await page.evaluate(() => window.getSelection()!.toString().trim());
+  expect(selected.length).toBeGreaterThan(0);
+
+  await page.getByRole('button', { name: 'Ask' }).click();
+  await page.locator('[data-test="composer-input"]').fill('what is this?');
+  await page.locator('[data-test="composer-send"]').click();
+
+  // The offsets must land on the SECTION, measured in the section's own text.
+  await expect.poll(async () => {
+    const sels = await (await request.get(`${API}/cards/${section.id}/selections`)).json();
+    const s = (sels.selections ?? [])[0];
+    if (!s) return null;
+    return 'Hello brave world'.slice(s.selection_start, s.selection_end);
+  }, { timeout: 10_000 }).toBe(selected);
+});

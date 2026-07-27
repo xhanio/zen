@@ -345,7 +345,14 @@ async function onSectionDrop(idx: number, e: DragEvent) {
             @click="containerFilter.toggleCard(child.id)"
             @keydown.enter.prevent="containerFilter.toggleCard(child.id)"
           >
-            <HtmlBody v-if="titleHtmls[child.id]" :source="titleHtmls[child.id]!" />
+            <!-- zen-title-html marks this host as NOT the section body, so
+                 bodyRootFor measures selections against the body's shadow
+                 root rather than the title's. -->
+            <HtmlBody
+              v-if="titleHtmls[child.id]"
+              class="zen-title-html"
+              :source="titleHtmls[child.id]!"
+            />
             <h2
               v-else
               class="mt-[.5em] mb-[.5em] text-[1.15rem] font-semibold leading-[1.75] text-fg"
