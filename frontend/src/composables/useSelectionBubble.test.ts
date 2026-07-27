@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { rangeInside, findCardId } from './useSelectionBubble';
+import { rangeInside, findCardId, measureSelection } from './useSelectionBubble';
 
 describe('rangeInside', () => {
   it('returns true when both endpoints are inside target', () => {
@@ -108,5 +108,87 @@ describe('findCardId', () => {
     document.body.appendChild(outer);
     expect(findCardId(inner.firstChild)).toBe(null);
     outer.remove();
+  });
+});
+
+describe('measureSelection', () => {
+  // Builds the shape CardView renders for an html-format card: the
+  // [data-card-id] section wrapping HtmlBody's .html-body-host shadow root.
+  function htmlCard(id: string, markup: string) {
+    const section = document.createElement('section');
+    section.setAttribute('data-card-id', id);
+    const host = document.createElement('div');
+    host.className = 'html-body-host';
+    section.appendChild(host);
+    document.body.appendChild(section);
+    const shadow = host.attachShadow({ mode: 'open' });
+    shadow.innerHTML = markup;
+    return { section, host, shadow };
+  }
+
+  it('measures a markdown card body from the document-level range', () => {
+    const section = document.createElement('section');
+    section.setAttribute('data-card-id', 'md1');
+    section.innerHTML = '<p>Hello brave world</p>';
+    document.body.appendChild(section);
+
+    const t = section.querySelector('p')!.firstChild as Text;
+    const range = document.createRange();
+    range.setStart(t, 6);
+    range.setEnd(t, 11);
+
+    expect(measureSelection('md1', range, 'brave')).toEqual({ start: 6, end: 11 });
+    section.remove();
+  });
+
+  // The v1.1.1 defect: Chrome retargets a shadow-tree selection to the host,
+  // so the document-level range's boundaries are the host element and never
+  // the text nodes inside. Every html-format card recorded no range.
+  it('measures an html card when the range was retargeted to the host', () => {
+    const { section, host, shadow } = htmlCard('h1', '<p>Hello brave world</p>');
+
+    // The real selection, as ShadowRoot.getSelection() reports it.
+    const inner = document.createRange();
+    const t = shadow.querySelector('p')!.firstChild as Text;
+    inner.setStart(t, 6);
+    inner.setEnd(t, 11);
+    (shadow as ShadowRoot & { getSelection?: () => unknown }).getSelection = () => ({
+      rangeCount: 1,
+      getRangeAt: () => inner,
+    });
+
+    // What window.getSelection() hands us: collapsed onto the host.
+    const retargeted = document.createRange();
+    const idx = Array.from(host.parentNode!.childNodes).indexOf(host);
+    retargeted.setStart(host.parentNode!, idx);
+    retargeted.setEnd(host.parentNode!, idx + 1);
+
+    expect(measureSelection('h1', retargeted, 'brave')).toEqual({ start: 6, end: 11 });
+    section.remove();
+  });
+
+  // The fallback must not accept whatever the shadow root happens to hold —
+  // the checksum against the reported text is what makes it safe.
+  it('records no range when the shadow selection disagrees with the text', () => {
+    const { section, shadow } = htmlCard('h2', '<p>Hello brave world</p>');
+    const inner = document.createRange();
+    const t = shadow.querySelector('p')!.firstChild as Text;
+    inner.setStart(t, 0);
+    inner.setEnd(t, 5); // "Hello", not the reported "brave"
+    (shadow as ShadowRoot & { getSelection?: () => unknown }).getSelection = () => ({
+      rangeCount: 1,
+      getRangeAt: () => inner,
+    });
+
+    const retargeted = document.createRange();
+    retargeted.selectNodeContents(section);
+
+    expect(measureSelection('h2', retargeted, 'brave')).toBeNull();
+    section.remove();
+  });
+
+  it('records no range when the card body is not in the document', () => {
+    const range = document.createRange();
+    expect(measureSelection('absent', range, 'brave')).toBeNull();
   });
 });

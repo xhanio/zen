@@ -71,6 +71,18 @@ export function bodyRootFor(cardID: string | null, within: ParentNode = document
   return el.querySelector('[data-body-root]') ?? el;
 }
 
+// Chrome retargets a shadow-tree selection to its host, so the document-level
+// range's endpoints are the host element rather than the text nodes inside it.
+// offsetsForRange can never match those, so an html-format card would measure
+// nothing at all. ShadowRoot.getSelection() holds the real range — the same
+// bridge selectionRect() relies on above.
+function innerRange(root: Node): Range | null {
+  const sr = root as ShadowRoot & { getSelection?: () => Selection | null };
+  if (typeof sr.getSelection !== 'function') return null;
+  const sel = sr.getSelection();
+  return sel && sel.rangeCount > 0 ? sel.getRangeAt(0) : null;
+}
+
 // Returns null whenever the span cannot be pinned down — a cross-card drag, a
 // root we cannot find, or a trimmed window that no longer equals the reported
 // text. Null means "no range", which is a supported state, not a failure.
@@ -81,7 +93,14 @@ export function measureSelection(
 ): { start: number; end: number } | null {
   const root = bodyRootFor(cardID);
   if (!root) return null;
-  const raw = offsetsForRange(root, domRange);
+  // Document range first: correct for light DOM, and for any browser that does
+  // not retarget. Only fall back when it fails to resolve — the text checksum
+  // below is what keeps a stale shadow selection from being recorded.
+  let raw = offsetsForRange(root, domRange);
+  if (!raw) {
+    const inner = innerRange(root);
+    raw = inner ? offsetsForRange(root, inner) : null;
+  }
   if (!raw) return null;
   const full = renderedText(root);
   // text is reported trimmed, so the window must be trimmed to match or the
