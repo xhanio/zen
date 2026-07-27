@@ -185,3 +185,11 @@ func (r *router) ReviewCard(c api.Context) error {
 	}
 	return c.JSON(http.StatusOK, card)
 }
+
+func (r *router) ListCardSelections(c api.Context) error {
+	sels, err := r.svc.Selections(c, c.Param("id"))
+	if err != nil {
+		return errors.Wrap(err)
+	}
+	return c.JSON(http.StatusOK, api.ListCardSelectionsResponse{Selections: sels})
+}

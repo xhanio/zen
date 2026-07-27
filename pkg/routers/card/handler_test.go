@@ -380,3 +380,30 @@ func TestGetCard_TopLevelIncludesReviewScore(t *testing.T) {
 		t.Fatalf("top-level card must include review_score")
 	}
 }
+
+// router.yaml is matched to methods by name at runtime, so a typo in either
+// half fails silently as a 404 rather than a build error. This pins every
+// route in the file, not just the newest one.
+func TestRouterYAML_NamesOnlyRealHandlers(t *testing.T) {
+	r := card.NewForTest(nil)
+	handlers := api.DiscoverHandlers(r)
+	cfg := string(r.Config())
+
+	for _, line := range strings.Split(cfg, "\n") {
+		line = strings.TrimSpace(line)
+		if !strings.HasPrefix(line, "func:") {
+			continue
+		}
+		name := strings.TrimSpace(strings.TrimPrefix(line, "func:"))
+		if _, ok := handlers[name]; !ok {
+			t.Errorf("router.yaml names %q but the router has no such handler", name)
+		}
+	}
+
+	if _, ok := handlers["ListCardSelections"]; !ok {
+		t.Error("ListCardSelections handler missing")
+	}
+	if !strings.Contains(cfg, "func: ListCardSelections") {
+		t.Error("router.yaml does not route ListCardSelections")
+	}
+}

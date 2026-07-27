@@ -904,3 +904,14 @@ func ensureCatalogEntry(catalog []entity.LevelEntry, entryID string) error {
 	}
 	return errors.BadRequest.Newf("level_entry_id %q not found in group catalog", entryID)
 }
+
+// Selections returns the message selections painted on this card's body.
+// An unknown card yields an empty list rather than 404: "no conversations"
+// and "no such card" are the same thing to the painter, and the card fetch
+// rendered alongside it already reports a missing card.
+func (m *manager) Selections(ctx context.Context, cardID string) ([]*entity.CardSelection, error) {
+	if err := ulidutil.Parse(cardID); err != nil {
+		return nil, errors.BadRequest.Newf("invalid card id %q", cardID)
+	}
+	return m.repo.ListCardSelections(ctx, cardID)
+}

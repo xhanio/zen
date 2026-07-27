@@ -92,3 +92,7 @@ type TrashResponse struct {
 type EmptyTrashResponse struct {
 	Purged int `json:"purged"`
 }
+
+type ListCardSelectionsResponse struct {
+	Selections []*entity.CardSelection `json:"selections"`
+}

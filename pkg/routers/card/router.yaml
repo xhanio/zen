@@ -37,3 +37,6 @@ handlers:
   - method: POST
     path: /:id/review
     func: ReviewCard
+  - method: GET
+    path: /:id/selections
+    func: ListCardSelections

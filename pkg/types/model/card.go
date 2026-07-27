@@ -25,4 +25,7 @@ type Card interface {
 	Compose(ctx context.Context, req api.ComposeRequest) (*api.ComposeResponse, error)
 	Reorder(ctx context.Context, cardID string, position int) (*entity.Card, error)
 	Review(ctx context.Context, cardID string, grade string) (*entity.Card, error)
+	// Selections returns the ranged message selections anchored to this card,
+	// oldest first — what the SPA paints as underlines in the card body.
+	Selections(ctx context.Context, cardID string) ([]*entity.CardSelection, error)
 }
