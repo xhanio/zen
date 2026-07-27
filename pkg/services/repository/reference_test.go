@@ -115,3 +115,46 @@ func TestReference_RoundTrip_NullConversation(t *testing.T) {
 		t.Fatalf("bad selection_text: %q", got.SelectionText)
 	}
 }
+
+func TestReference_SelectionRangeRoundTrip(t *testing.T) {
+	repo, src, der, conv := newRefCtx(t)
+	ctx := context.Background()
+	start, end, seq := 10, 25, 3
+	r := &entity.Reference{
+		ID: ulidutil.New(), SourceCardID: src, DerivedCardID: der, ConversationID: &conv,
+		SelectionText: "anchored span", CreatedAt: time.Now(),
+		SelectionStart: &start, SelectionEnd: &end, SelectionSeq: &seq,
+	}
+	if err := repo.CreateReference(ctx, r); err != nil {
+		t.Fatalf("CreateReference: %v", err)
+	}
+	got, err := repo.GetReference(ctx, r.ID)
+	if err != nil {
+		t.Fatalf("GetReference: %v", err)
+	}
+	if got.SelectionStart == nil || *got.SelectionStart != 10 ||
+		got.SelectionEnd == nil || *got.SelectionEnd != 25 ||
+		got.SelectionSeq == nil || *got.SelectionSeq != 3 {
+		t.Fatalf("range not preserved: %+v %+v %+v", got.SelectionStart, got.SelectionEnd, got.SelectionSeq)
+	}
+}
+
+// A reference with no range is the permanent no-range path, not an error.
+func TestReference_NilRangeRoundTrip(t *testing.T) {
+	repo, src, der, conv := newRefCtx(t)
+	ctx := context.Background()
+	r := &entity.Reference{
+		ID: ulidutil.New(), SourceCardID: src, DerivedCardID: der, ConversationID: &conv,
+		SelectionText: "no range here", CreatedAt: time.Now(),
+	}
+	if err := repo.CreateReference(ctx, r); err != nil {
+		t.Fatalf("CreateReference: %v", err)
+	}
+	got, err := repo.GetReference(ctx, r.ID)
+	if err != nil {
+		t.Fatalf("GetReference: %v", err)
+	}
+	if got.SelectionStart != nil || got.SelectionEnd != nil || got.SelectionSeq != nil {
+		t.Fatalf("expected nil range, got %+v", got)
+	}
+}

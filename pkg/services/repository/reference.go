@@ -25,6 +25,9 @@ func ormToEntityReference(o *orm.Reference) *entity.Reference {
 		DerivedCardID:  o.DerivedCardID,
 		ConversationID: conv,
 		SelectionText:  o.SelectionText,
+		SelectionStart: o.SelectionStart,
+		SelectionEnd:   o.SelectionEnd,
+		SelectionSeq:   o.SelectionSeq,
 		CreatedAt:      o.CreatedAt,
 	}
 }
@@ -40,6 +43,9 @@ func entityToOrmReference(e *entity.Reference) *orm.Reference {
 		DerivedCardID:  e.DerivedCardID,
 		ConversationID: conv,
 		SelectionText:  e.SelectionText,
+		SelectionStart: e.SelectionStart,
+		SelectionEnd:   e.SelectionEnd,
+		SelectionSeq:   e.SelectionSeq,
 		CreatedAt:      e.CreatedAt,
 	}
 }
@@ -112,7 +118,7 @@ func (m *manager) DeleteReferencesForCard(ctx context.Context, cardID string) er
 func (m *manager) DeleteReferencesForTrashedCards(ctx context.Context) error {
 	sub := "SELECT id FROM cards WHERE deleted_at IS NOT NULL"
 	if err := m.db.FromContext(ctx).
-		Where("source_card_id IN ("+sub+") OR derived_card_id IN ("+sub+")").
+		Where("source_card_id IN (" + sub + ") OR derived_card_id IN (" + sub + ")").
 		Delete(&orm.Reference{}).Error; err != nil {
 		return errors.DBFailed.Wrapf(err, "failed to purge references for trashed cards")
 	}

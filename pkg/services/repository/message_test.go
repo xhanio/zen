@@ -266,3 +266,54 @@ func TestListMessagesAfter_IsScopedToTheConversation(t *testing.T) {
 		t.Fatalf("got %+v, want only b's message", got)
 	}
 }
+
+func TestCreateMessage_PersistsSelectionRange(t *testing.T) {
+	r := repository.New(testutil.NewDB(t))
+	ctx := context.Background()
+	convID := newConvForMsgTest(t, r)
+
+	start, end, seq := 4, 9, 2
+	sel := "quick"
+	m := &entity.Message{
+		ID: ulidutil.New(), ConversationID: convID, Role: "user", Content: "why this?",
+		SelectionText: &sel, CreatedAt: time.Now(),
+		SelectionStart: &start, SelectionEnd: &end, SelectionSeq: &seq,
+	}
+	if err := r.CreateMessage(ctx, m); err != nil {
+		t.Fatalf("CreateMessage: %v", err)
+	}
+
+	got, err := r.GetMessage(ctx, m.ID)
+	if err != nil {
+		t.Fatalf("GetMessage: %v", err)
+	}
+	if got.SelectionStart == nil || *got.SelectionStart != 4 ||
+		got.SelectionEnd == nil || *got.SelectionEnd != 9 ||
+		got.SelectionSeq == nil || *got.SelectionSeq != 2 {
+		t.Fatalf("range not preserved: %+v %+v %+v", got.SelectionStart, got.SelectionEnd, got.SelectionSeq)
+	}
+}
+
+// A message with text but no offsets is the pre-feature shape and must keep
+// round-tripping cleanly.
+func TestCreateMessage_NilSelectionRange(t *testing.T) {
+	r := repository.New(testutil.NewDB(t))
+	ctx := context.Background()
+	convID := newConvForMsgTest(t, r)
+
+	sel := "older selection"
+	m := &entity.Message{
+		ID: ulidutil.New(), ConversationID: convID, Role: "user", Content: "q",
+		SelectionText: &sel, CreatedAt: time.Now(),
+	}
+	if err := r.CreateMessage(ctx, m); err != nil {
+		t.Fatalf("CreateMessage: %v", err)
+	}
+	got, err := r.GetMessage(ctx, m.ID)
+	if err != nil {
+		t.Fatalf("GetMessage: %v", err)
+	}
+	if got.SelectionStart != nil || got.SelectionEnd != nil || got.SelectionSeq != nil {
+		t.Fatalf("expected nil range, got %+v", got)
+	}
+}
