@@ -11,6 +11,9 @@ import SectionConversationChip from './SectionConversationChip.vue';
 import { useRenderedSections } from '../composables/useRenderedSections';
 import { colorForCard } from '../utils/levelPalette';
 import type { Card } from '../types/entity';
+import { useSelectionsStore } from '../stores/selections';
+import { buildCardHighlights } from '../utils/cardHighlights';
+import type { Highlight } from '../utils/highlightText';
 
 // The stitched container view. Each child gets a slim vertical color
 // bar (level palette) running its full height in the left margin.
@@ -42,6 +45,33 @@ const allSections = computed(() => {
 });
 function isCollapsed(child: Card): boolean {
   return containerFilter.isCollapsed(child.id);
+}
+
+const { byID } = storeToRefs(cardsStore);
+const selectionsStore = useSelectionsStore();
+
+// Only sections that actually render a body are loaded: a collapsed section has
+// nothing to paint against, and a trashed one renders a placeholder with no
+// body at all. Two requests per expanded section, both cached, so a
+// collapse/expand cycle costs nothing further.
+//
+// references come only from GET /cards/:id — neither /children nor /cards
+// populates them — which is why loadOne is needed on top of the child data
+// already in byChildren. The `?.references` guard reads null (from /children)
+// as "not loaded" and [] (after loadOne) as "loaded, and empty".
+watch(
+  () => allSections.value.filter((c) => !c.deleted_at && !isCollapsed(c)).map((c) => c.id),
+  (ids) => {
+    for (const id of ids) {
+      if (!byID.value[id]?.references) void cardsStore.loadOne(id).catch(() => undefined);
+      if (!selectionsStore.byCard[id]) void selectionsStore.load(id);
+    }
+  },
+  { immediate: true },
+);
+
+function highlightsFor(childID: string): Highlight[] {
+  return buildCardHighlights(byID.value[childID], selectionsStore.byCard[childID]);
 }
 
 // Clicking anywhere on a section's article means the reader has engaged with it,
@@ -302,7 +332,11 @@ async function onSectionDrop(idx: number, e: DragEvent) {
               :class="isCollapsed(child) ? '' : 'border-b border-[rgba(128,128,128,0.3)] pb-[.25em]'"
             >{{ child.title }}</h2>
           </div>
-          <CardBody v-if="!isCollapsed(child)" :card="child" />
+          <CardBody
+            v-if="!isCollapsed(child)"
+            :card="child"
+            :highlights="highlightsFor(child.id)"
+          />
         </div>
       </section>
     </template>

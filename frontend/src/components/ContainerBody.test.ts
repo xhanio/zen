@@ -5,6 +5,7 @@ import ContainerBody from './ContainerBody.vue';
 import { useCardsStore } from '../stores/cards';
 import { useTilePrefsStore } from '../stores/tilePrefs';
 import { useContainerFilterStore } from '../stores/containerFilter';
+import { useSelectionsStore } from '../stores/selections';
 import type { Card } from '../types/entity';
 
 vi.mock('../api/client', () => ({
@@ -18,6 +19,10 @@ vi.mock('../api/client', () => ({
   listChildren: vi.fn(),
   listConversations: vi.fn().mockResolvedValue({ conversations: [] }),
   getConversation: vi.fn().mockResolvedValue(null),
+  // Required once ContainerBody uses the selections store: this mock replaces
+  // the whole module, so a missing export is called as undefined() and every
+  // test in the file throws.
+  listCardSelections: vi.fn().mockResolvedValue({ selections: [] }),
 }));
 import { listChildren } from '../api/client';
 
@@ -326,4 +331,68 @@ describe('ContainerBody reorder gesture', () => {
     expect(esc).toHaveBeenCalledWith('s', 'DIGESTED');
   });
 
+
+  it('passes each section its own highlights', async () => {
+    const parent = stub({ id: 'p', content: '' });
+    (listChildren as any).mockResolvedValue([
+      stub({ id: 'a', parent_card_id: 'p', position: 0, content: 'hello brave world' }),
+      stub({ id: 'b', parent_card_id: 'p', position: 1, content: 'other' }),
+    ]);
+
+    const cards = useCardsStore();
+    cards.byID['a'] = stub({ id: 'a', references: [] });
+    cards.byID['b'] = stub({ id: 'b', references: [] });
+
+    const selections = useSelectionsStore();
+    selections.byCard['a'] = [{
+      message_id: 'mA', conversation_id: 'v1', selection_text: 'brave',
+      selection_start: 6, selection_end: 11, selection_seq: 1,
+      created_at: '2026-07-27T00:00:00Z',
+    }];
+    selections.byCard['b'] = [];
+
+    const w = mount(ContainerBody, {
+      props: { parent },
+      global: {
+        stubs: {
+          RouterLink: routerLinkStub,
+          CardBody: {
+            template: '<div class="card-body" :data-card-id="card.id" :data-hl="JSON.stringify(highlights)"></div>',
+            props: ['card', 'highlights'],
+          },
+        },
+      },
+    });
+    await flushPromises();
+
+    const hl = (id: string) =>
+      JSON.parse(w.find(`.card-body[data-card-id="${id}"]`).attributes('data-hl') ?? 'null');
+    expect(hl('a').map((h: { id: string }) => h.id)).toEqual(['mA']);
+    expect(hl('b')).toEqual([]);
+  });
+
+  it('gives a section with nothing loaded an empty array, never undefined', async () => {
+    const parent = stub({ id: 'p', content: '' });
+    (listChildren as any).mockResolvedValue([
+      stub({ id: 'a', parent_card_id: 'p', position: 0 }),
+    ]);
+
+    const w = mount(ContainerBody, {
+      props: { parent },
+      global: {
+        stubs: {
+          RouterLink: routerLinkStub,
+          CardBody: {
+            template: '<div class="card-body" :data-card-id="card.id" :data-hl="JSON.stringify(highlights)"></div>',
+            props: ['card', 'highlights'],
+          },
+        },
+      },
+    });
+    await flushPromises();
+
+    // Not merely falsy: an undefined prop would render no attribute at all,
+    // and the painter must never receive undefined.
+    expect(w.find('.card-body').attributes('data-hl')).toBe('[]');
+  });
 });
