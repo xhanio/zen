@@ -95,3 +95,7 @@ body {
 
 mark.zen-ref { background: #fef9c3; border-radius: 2px; cursor: pointer; padding: 0 1px; }
 mark.zen-ref:hover { background: #fde68a; }
+/* Message selections underline rather than fill: fill means "reference", and
+   underlines stay individually countable where several selections overlap. */
+mark.zen-sel { background: none; border-bottom: 2px solid #60a5fa; cursor: pointer; }
+mark.zen-sel:hover { border-bottom-color: #2563eb; }

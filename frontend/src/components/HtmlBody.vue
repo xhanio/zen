@@ -10,9 +10,13 @@ const props = defineProps<{
 
 const hostRef = ref<HTMLDivElement | null>(null);
 
+// Shadow roots do not inherit the document stylesheet, so every mark style
+// must exist here AND in src/style.css. Missing it here breaks html cards only.
 const HIGHLIGHT_STYLE =
   '.zen-ref{background:#fef9c3;border-radius:2px;cursor:pointer;padding:0 1px}' +
-  '.zen-ref:hover{background:#fde68a}';
+  '.zen-ref:hover{background:#fde68a}' +
+  '.zen-sel{background:none;border-bottom:2px solid #60a5fa;cursor:pointer}' +
+  '.zen-sel:hover{border-bottom-color:#2563eb}';
 
 function paint() {
   const host = hostRef.value;
