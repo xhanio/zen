@@ -28,12 +28,20 @@ function pick() {
   p.select('s1');
 }
 
+// optimisticPost now returns the created Message so the composer can paint the
+// selection without refetching; the mock has to honour that contract.
+const sentMsg = {
+  id: 'm1', conversation_id: 'c1', role: 'user', content: 'hello',
+  selection_text: null, selection_start: null, selection_end: null,
+  selection_seq: null, created_at: '2026-07-27T00:00:00Z',
+} as never;
+
 describe('ChatComposer', () => {
   beforeEach(() => setActivePinia(createPinia()));
 
   it('Enter sends, Shift+Enter does not', async () => {
     const store = useConversationsStore(); store.activeID = 'c1'; pick();
-    const spy = vi.spyOn(store, 'optimisticPost').mockResolvedValue();
+    const spy = vi.spyOn(store, 'optimisticPost').mockResolvedValue(sentMsg);
     const w = mount(ChatComposer);
     const ta = w.find('[data-test="composer-input"]');
     await ta.setValue('hello');
@@ -47,7 +55,7 @@ describe('ChatComposer', () => {
   // capture chain, and nothing downstream can reconstruct it.
   it('forwards the pending selection range to the post', async () => {
     const store = useConversationsStore(); store.activeID = 'c1'; pick();
-    const spy = vi.spyOn(store, 'optimisticPost').mockResolvedValue();
+    const spy = vi.spyOn(store, 'optimisticPost').mockResolvedValue(sentMsg);
     sidebarState.pendingSelection.value = 'quick';
     sidebarState.pendingRange.value = { start: 4, end: 9 };
     sidebarState.pendingSeq.value = 2;

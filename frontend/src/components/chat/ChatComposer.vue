@@ -5,11 +5,13 @@ import { useChatSidebar } from '../../composables/useChatSidebar';
 import { BackendError } from '../../types/api';
 import SessionPresencePill from './SessionPresencePill.vue';
 import SessionSwitcher from './SessionSwitcher.vue';
+import { useSelectionsStore } from '../../stores/selections';
 
 const store = useConversationsStore();
 const sidebar = useChatSidebar();
 
 const content = ref('');
+const selections = useSelectionsStore();
 const sending = ref(false);
 const errorMsg = ref<string | null>(null);
 
@@ -41,12 +43,23 @@ async function send() {
       });
       await store.setActive(conv.id);
     }
-    await store.optimisticPost(
+    // Captured before clearSelection() wipes them below.
+    const anchorCardID =
+      sidebar.anchorKind.value === 'card' ? sidebar.anchorID.value : null;
+
+    const msg = await store.optimisticPost(
       text,
       sidebar.pendingSelection.value,
       sidebar.pendingRange.value,
       sidebar.pendingSeq.value,
     );
+
+    // Paint the new selection straight away. The card already knows everything
+    // needed — it measured these offsets at drag time and just posted them —
+    // so nothing is fetched. Without this the mark only appeared after a
+    // reload, which made the whole feature look broken on first use.
+    if (anchorCardID && msg) selections.add(anchorCardID, msg);
+
     content.value = '';
     sidebar.clearSelection();
   } catch (e) {

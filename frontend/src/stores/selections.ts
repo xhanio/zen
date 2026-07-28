@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { listCardSelections } from '../api/client';
-import type { CardSelection } from '../types/entity';
+import type { CardSelection, Message } from '../types/entity';
 
 export const useSelectionsStore = defineStore('selections', () => {
   const byCard = ref<Record<string, CardSelection[]>>({});
@@ -26,5 +26,27 @@ export const useSelectionsStore = defineStore('selections', () => {
     for (const id of ids) stale.value[id] = true;
   }
 
-  return { byCard, stale, load, markStale };
+  // Paint a just-sent selection without a round trip. The SPA is the origin of
+  // these offsets — it measured them at drag time and just posted them — so
+  // re-asking the server for data it was handed a moment ago would only delay
+  // the mark. Ignores a message with no range: those never paint.
+  function add(cardID: string, m: Message): void {
+    if (m.selection_start == null || m.selection_end == null || !m.selection_text) return;
+    const list = byCard.value[cardID] ?? [];
+    if (list.some((s) => s.message_id === m.id)) return;
+    byCard.value[cardID] = [
+      ...list,
+      {
+        message_id: m.id,
+        conversation_id: m.conversation_id,
+        selection_text: m.selection_text,
+        selection_start: m.selection_start,
+        selection_end: m.selection_end,
+        selection_seq: m.selection_seq ?? null,
+        created_at: m.created_at,
+      },
+    ];
+  }
+
+  return { byCard, stale, load, markStale, add };
 });

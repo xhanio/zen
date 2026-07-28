@@ -359,7 +359,7 @@ export const useConversationsStore = defineStore('conversations', () => {
     selectionText: string | null = null,
     range: { start: number; end: number } | null = null,
     selectionSeq: number | null = null,
-  ): Promise<void> {
+  ): Promise<Message> {
     const id = activeID.value;
     if (!id) throw new Error('no active conversation');
 
@@ -402,6 +402,8 @@ export const useConversationsStore = defineStore('conversations', () => {
       const card = cardsStore.byID[conv.anchor_id];
       if (card?.parent_card_id) void cardsStore.escalateReviewGrade(conv.anchor_id, 'GRILLED');
     }
+
+    return msg;
   }
 
   const anchorTitleCache = ref<Record<string, string>>({});

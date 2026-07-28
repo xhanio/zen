@@ -369,3 +369,56 @@ test('a drag inside a container section records the offsets', async ({ page, req
     return 'Hello brave world'.slice(s.selection_start, s.selection_end);
   }, { timeout: 10_000 }).toBe(selected);
 });
+
+// The first-run experience, with NO reload. Every earlier test reloaded before
+// asserting, which quietly hid the fact that sending a message never told the
+// card anything had changed — you selected, asked, and saw nothing until you
+// navigated away and back.
+test('the underline appears on send, without a reload', async ({ page, request }) => {
+  const stamp = Date.now();
+
+  const group = await (await request.post(`${API}/groups`, {
+    data: { name: `instant-e2e-${stamp}` },
+  })).json();
+  const source = await (await request.post(`${API}/cards`, {
+    data: {
+      title: `Instant ${stamp}`,
+      content: '<p>Hello <strong>brave</strong> world</p>',
+      format: 'html',
+      group_id: group.id,
+    },
+  })).json();
+
+  await page.goto(`/c/${source.id}`);
+  await expect(page.locator('.html-body-host')).toBeAttached();
+
+  const box = await page.evaluate((cardId) => {
+    const host = document
+      .querySelector(`[data-card-id="${cardId}"]`)!
+      .querySelector('.html-body-host:not(.zen-title-html)') as HTMLElement;
+    const r = host.shadowRoot!.querySelector('p')!.getBoundingClientRect();
+    return { x: r.x, y: r.y, w: r.width, h: r.height };
+  }, source.id);
+
+  await page.mouse.move(box.x + 2, box.y + box.h / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.w - 2, box.y + box.h / 2, { steps: 15 });
+  await page.mouse.up();
+
+  const selected = await page.evaluate(() => window.getSelection()!.toString().trim());
+  expect(selected.length).toBeGreaterThan(0);
+
+  await page.getByRole('button', { name: 'Ask' }).click();
+  await page.locator('[data-test="composer-input"]').fill('what is this?');
+  await page.locator('[data-test="composer-send"]').click();
+
+  // No reload, no navigation: the mark must show up on its own.
+  await expect.poll(async () => {
+    return await page.locator('.html-body-host:not(.zen-title-html)').first().evaluate(
+      (host: HTMLElement) =>
+        Array.from(host.shadowRoot?.querySelectorAll('mark.zen-sel') ?? [])
+          .map((m) => m.textContent)
+          .join(''),
+    );
+  }, { timeout: 8_000 }).toBe(selected);
+});

@@ -51,4 +51,39 @@ describe('selections store', () => {
     expect(store.stale['m2']).toBe(true);
     expect(store.stale['m3']).toBeUndefined();
   });
+
+  it('adds a just-sent selection locally, without fetching', () => {
+    const store = useSelectionsStore();
+    store.add('card1', {
+      id: 'm9', conversation_id: 'c1', role: 'user', content: 'q',
+      selection_text: 'brave', selection_start: 6, selection_end: 11,
+      selection_seq: 2, created_at: '2026-07-27T00:00:00Z',
+    } as never);
+    expect(store.byCard['card1']).toHaveLength(1);
+    expect(store.byCard['card1'][0].message_id).toBe('m9');
+    expect(store.byCard['card1'][0].selection_start).toBe(6);
+    expect(listCardSelections).not.toHaveBeenCalled();
+  });
+
+  it('ignores a message with no range — those can never paint', () => {
+    const store = useSelectionsStore();
+    store.add('card1', {
+      id: 'm10', conversation_id: 'c1', role: 'user', content: 'q',
+      selection_text: 'brave', selection_start: null, selection_end: null,
+      selection_seq: null, created_at: '2026-07-27T00:00:00Z',
+    } as never);
+    expect(store.byCard['card1'] ?? []).toHaveLength(0);
+  });
+
+  it('does not double-add the same message', () => {
+    const store = useSelectionsStore();
+    const m = {
+      id: 'm11', conversation_id: 'c1', role: 'user', content: 'q',
+      selection_text: 'brave', selection_start: 6, selection_end: 11,
+      selection_seq: 1, created_at: '2026-07-27T00:00:00Z',
+    } as never;
+    store.add('card1', m);
+    store.add('card1', m);
+    expect(store.byCard['card1']).toHaveLength(1);
+  });
 });
