@@ -19,11 +19,13 @@ func (m *manager) Init(ctx context.Context) error {
 	}
 
 	m.services.Register(m.mcpSvc)
-	m.services.Register(m.api)
 
 	if err := m.services.TopoSort(); err != nil {
 		return errors.Wrap(err)
 	}
+
+	// API server registered after the sort so it starts after its dependencies.
+	m.services.Register(m.api)
 
 	if err := m.services.Init(ctx); err != nil {
 		return errors.Wrap(err)

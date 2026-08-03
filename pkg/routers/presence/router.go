@@ -2,12 +2,11 @@ package presence
 
 import (
 	_ "embed"
-	"path"
 
 	fapi "github.com/xhanio/framingo/pkg/types/api"
 	"github.com/xhanio/framingo/pkg/types/common"
 	"github.com/xhanio/framingo/pkg/utils/log"
-	"github.com/xhanio/framingo/pkg/utils/reflectutil"
+	"github.com/xhanio/framingo/pkg/utils/nameutil"
 
 	"github.com/xhanio/zen/pkg/types/api"
 	"github.com/xhanio/zen/pkg/types/model"
@@ -25,21 +24,17 @@ type router struct {
 	delivery model.Delivery
 }
 
-func New(pres model.Presence, del model.Delivery, logger log.Logger) fapi.Router {
-	return &router{log: logger, presence: pres, delivery: del}
+func newRouter(pres model.Presence, del model.Delivery, logger log.Logger) *router {
+	r := &router{log: logger, presence: pres, delivery: del}
+	r.name = nameutil.Name(r)
+	return r
 }
 
-type RouterForTest = router
-
-// NewForTest supplies a real logger: SessionsWS logs on the write-failure path.
-func NewForTest(pres model.Presence, del model.Delivery) *RouterForTest {
-	return &router{log: log.Default, presence: pres, delivery: del}
+func New(pres model.Presence, del model.Delivery, logger log.Logger) fapi.Router {
+	return newRouter(pres, del, logger)
 }
 
 func (r *router) Name() string {
-	if r.name == "" {
-		r.name = path.Join(reflectutil.Locate(r))
-	}
 	return r.name
 }
 

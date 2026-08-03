@@ -1,5 +1,7 @@
 server: http
 prefix: /mcp
+middlewares:
+  - throttle
 handlers:
   - method: ANY
     path: /

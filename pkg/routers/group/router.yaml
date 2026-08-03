@@ -1,5 +1,7 @@
 server: http
 prefix: /groups
+middlewares:
+  - throttle
 handlers:
   - method: POST
     path: /

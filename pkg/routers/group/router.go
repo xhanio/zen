@@ -2,12 +2,10 @@ package group
 
 import (
 	_ "embed"
-	"path"
 
 	fapi "github.com/xhanio/framingo/pkg/types/api"
 	"github.com/xhanio/framingo/pkg/types/common"
 	"github.com/xhanio/framingo/pkg/utils/log"
-	"github.com/xhanio/framingo/pkg/utils/reflectutil"
 
 	"github.com/xhanio/zen/pkg/types/api"
 	"github.com/xhanio/zen/pkg/types/model"
@@ -24,26 +22,18 @@ type router struct {
 	svc  model.Group
 }
 
-func New(svc model.Group, logger log.Logger) fapi.Router {
+func newRouter(svc model.Group, logger log.Logger) *router {
 	return &router{
 		log: logger,
 		svc: svc,
 	}
 }
 
-// RouterForTest is a type alias exposing the unexported router for HTTP-level
-// unit tests in this package's _test.go files.
-type RouterForTest = router
-
-// NewForTest constructs a router for unit tests without requiring a logger.
-func NewForTest(svc model.Group) *RouterForTest {
-	return &router{svc: svc}
+func New(svc model.Group, logger log.Logger) fapi.Router {
+	return newRouter(svc, logger)
 }
 
 func (r *router) Name() string {
-	if r.name == "" {
-		r.name = path.Join(reflectutil.Locate(r))
-	}
 	return r.name
 }
 

@@ -174,7 +174,7 @@ func TestStdioServer_InitToolsListAndCall(t *testing.T) {
 	send(map[string]any{
 		"jsonrpc": "2.0", "id": 3, "method": "tools/call",
 		"params": map[string]any{
-			"name": "reply",
+			"name":      "reply",
 			"arguments": map[string]any{"conversation_id": "01CONV", "content": "hi"},
 		},
 	})

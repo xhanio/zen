@@ -2,12 +2,11 @@ package mcp
 
 import (
 	"net/http"
-	"path"
 
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/xhanio/framingo/pkg/types/common"
 	"github.com/xhanio/framingo/pkg/utils/log"
-	"github.com/xhanio/framingo/pkg/utils/reflectutil"
+	"github.com/xhanio/framingo/pkg/utils/nameutil"
 
 	zenbackend "github.com/xhanio/zen/pkg/components/client/zen-backend"
 )
@@ -22,18 +21,21 @@ type manager struct {
 }
 
 func New(backend zenbackend.Client, opts ...Option) Manager {
+	return newManager(backend, opts...)
+}
+
+// newManager returns the concrete manager, the form package tests construct.
+func newManager(backend zenbackend.Client, opts ...Option) *manager {
 	m := &manager{log: log.Default, backend: backend}
 	for _, opt := range opts {
 		opt(m)
 	}
+	m.name = nameutil.Name(m)
 	m.log = m.log.By(m)
 	return m
 }
 
 func (m *manager) Name() string {
-	if m.name == "" {
-		m.name = path.Join(reflectutil.Locate(m))
-	}
 	return m.name
 }
 

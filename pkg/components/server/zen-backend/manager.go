@@ -2,7 +2,6 @@ package zenbackend
 
 import (
 	"context"
-	"path"
 
 	"github.com/spf13/viper"
 	"github.com/xhanio/framingo/pkg/services/api/server"
@@ -11,7 +10,6 @@ import (
 	"github.com/xhanio/framingo/pkg/services/supervisor"
 	framodel "github.com/xhanio/framingo/pkg/types/model"
 	"github.com/xhanio/framingo/pkg/utils/log"
-	"github.com/xhanio/framingo/pkg/utils/reflectutil"
 
 	"github.com/xhanio/zen/pkg/services/repository"
 	"github.com/xhanio/zen/pkg/types/model"
@@ -53,8 +51,5 @@ func New(configPath string) Server {
 }
 
 func (m *manager) Name() string {
-	if m.name == "" {
-		m.name = path.Join(reflectutil.Locate(m))
-	}
 	return m.name
 }

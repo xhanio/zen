@@ -1,5 +1,7 @@
 server: http
 prefix: /snapshots
+middlewares:
+  - throttle
 handlers:
   - method: GET
     path: /

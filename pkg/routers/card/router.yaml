@@ -1,5 +1,7 @@
 server: http
 prefix: /cards
+middlewares:
+  - throttle
 handlers:
   - method: POST
     path: /

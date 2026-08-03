@@ -24,11 +24,21 @@ func (m *manager) Init(ctx context.Context) error {
 		m.repository,
 		m.pubsub,
 		m.bus,
+	)
+
+	// business services. Every one goes in, including those with no lifecycle
+	// work today: the supervisor is also what reports them through Info and
+	// the health probes, and an Init added later would otherwise never run.
+	m.services.Register(
 		m.conversation,
 		m.group,
 		m.tag,
 		m.card,
 		m.search,
+		m.reference,
+		m.snapshot,
+		m.presence,
+		m.delivery,
 	)
 
 	if err := m.services.TopoSort(); err != nil {
@@ -39,6 +49,12 @@ func (m *manager) Init(ctx context.Context) error {
 	m.services.Register(
 		m.api,
 	)
+
+	// Register all services with the messagebus; those implementing neither
+	// MessageHandler nor RawMessageHandler are skipped automatically.
+	for _, svc := range m.services.Services() {
+		m.bus.Register(svc)
+	}
 
 	if err := m.services.Init(ctx); err != nil {
 		return errors.Wrap(err)

@@ -2,12 +2,11 @@ package tag
 
 import (
 	_ "embed"
-	"path"
 
 	fapi "github.com/xhanio/framingo/pkg/types/api"
 	"github.com/xhanio/framingo/pkg/types/common"
 	"github.com/xhanio/framingo/pkg/utils/log"
-	"github.com/xhanio/framingo/pkg/utils/reflectutil"
+	"github.com/xhanio/framingo/pkg/utils/nameutil"
 
 	"github.com/xhanio/zen/pkg/types/api"
 	"github.com/xhanio/zen/pkg/types/model"
@@ -24,22 +23,17 @@ type router struct {
 	svc  model.Tag
 }
 
-func New(svc model.Tag, logger log.Logger) fapi.Router {
-	return &router{log: logger, svc: svc}
+func newRouter(svc model.Tag, logger log.Logger) *router {
+	r := &router{log: logger, svc: svc}
+	r.name = nameutil.Name(r)
+	return r
 }
 
-// RouterForTest is a type alias exposing the unexported router for HTTP-level
-// unit tests.
-type RouterForTest = router
-
-func NewForTest(svc model.Tag) *RouterForTest {
-	return &router{svc: svc}
+func New(svc model.Tag, logger log.Logger) fapi.Router {
+	return newRouter(svc, logger)
 }
 
 func (r *router) Name() string {
-	if r.name == "" {
-		r.name = path.Join(reflectutil.Locate(r))
-	}
 	return r.name
 }
 

@@ -16,11 +16,11 @@ import (
 // card-anchored conversation ready for AppendMessage. Returns the card ID
 // (target of auto-upgrade) and the conversation ID.
 type autoupgradeCtx struct {
-	svc      conversation.Manager
-	repo     repository.Repository
-	cardID   string
-	convoID  string
-	groupID  string
+	svc     conversation.Manager
+	repo    repository.Repository
+	cardID  string
+	convoID string
+	groupID string
 }
 
 func newAutoupgradeCtx(t *testing.T) *autoupgradeCtx {

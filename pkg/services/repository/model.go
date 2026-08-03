@@ -11,6 +11,12 @@ import (
 
 type Repository interface {
 	common.Service
+	// Liveness/Readiness are the supervisor's probes, implemented in
+	// health.go: this is the only layer that touches the connection, so it is
+	// the only layer that can answer for it. The health router reads the
+	// supervisor's roll-up, never a database handle.
+	common.Liveness
+	common.Readiness
 	Transaction(ctx context.Context, fn func(context.Context) error, opts ...*sql.TxOptions) error
 	repo.Group
 	repo.Tag

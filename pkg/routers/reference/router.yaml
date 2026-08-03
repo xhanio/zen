@@ -1,5 +1,7 @@
 server: http
 prefix: /references
+middlewares:
+  - throttle
 handlers:
   - method: POST
     path: /

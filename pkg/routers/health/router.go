@@ -1,56 +1,60 @@
 package health
 
 import (
-	"database/sql"
 	_ "embed"
-	"path"
 
-	"github.com/xhanio/framingo/pkg/services/db"
 	fapi "github.com/xhanio/framingo/pkg/types/api"
 	"github.com/xhanio/framingo/pkg/types/common"
+	"github.com/xhanio/framingo/pkg/types/entity"
 	"github.com/xhanio/framingo/pkg/utils/log"
-	"github.com/xhanio/framingo/pkg/utils/reflectutil"
+	"github.com/xhanio/framingo/pkg/utils/nameutil"
 
 	"github.com/xhanio/zen/pkg/types/api"
 )
 
 var _ fapi.Router = (*router)(nil)
 
+// Supervisor is the narrow view this router needs: the two graph verdicts,
+// plus the stats behind the readiness body. supervisor.Manager satisfies it;
+// model interfaces stay lifecycle-free and the service package stays out of
+// the router.
+type Supervisor interface {
+	common.Liveness
+	common.Readiness
+	Stats() ([]*entity.SupervisorStats, error)
+}
+
 //go:embed router.yaml
 var config []byte
-
-// pinger is the narrow surface this router needs from a database manager.
-// db.Manager satisfies it via DB() *sql.DB.
-type pinger interface {
-	DB() *sql.DB
-}
 
 type router struct {
 	name string
 	log  log.Logger
-	db   pinger
+
+	sv Supervisor // read-only view over the service graph's stats
 }
 
-func New(database db.Manager, logger log.Logger) fapi.Router {
-	return &router{
-		log: logger,
-		db:  database,
+func New(sv Supervisor, log log.Logger) fapi.Router {
+	return newRouter(sv, log)
+}
+
+// newRouter returns the concrete router, the form package tests construct.
+func newRouter(sv Supervisor, log log.Logger) *router {
+	r := &router{
+		sv:  sv,
+		log: log,
 	}
+	r.name = nameutil.Name(r)
+	return r
 }
 
 func (r *router) Name() string {
-	if r.name == "" {
-		r.name = path.Join(reflectutil.Locate(r))
-	}
 	return r.name
 }
 
+// Dependencies is deliberately empty: this router reads the supervisor
+// itself, which orchestrates the graph and cannot be a node inside it.
 func (r *router) Dependencies() []common.Service {
-	// The narrow pinger interface won't satisfy common.Service; we still
-	// need the real db.Manager from initServices for ordering. Cast back.
-	if svc, ok := r.db.(common.Service); ok {
-		return []common.Service{svc}
-	}
 	return nil
 }
 

@@ -2,8 +2,10 @@ package zenbackend
 
 import (
 	"fmt"
+	"time"
 
 	"go.uber.org/zap/zapcore"
+	"gopkg.in/yaml.v3"
 
 	"github.com/xhanio/errors"
 	"github.com/xhanio/framingo/pkg/services/api/server"
@@ -29,6 +31,11 @@ import (
 	"github.com/xhanio/zen/pkg/utils/infra"
 )
 
+// defaultMonitorInterval is how often the supervisor re-probes every service
+// when supervisor.monitor.interval is unset. It sets the staleness ceiling on
+// /readyz, since the roll-up reads what the last sweep recorded.
+const defaultMonitorInterval = 15 * time.Second
+
 func (m *manager) initServices() error {
 	m.log = log.New(
 		log.WithLevel(m.config.GetInt("log.level")),
@@ -41,8 +48,18 @@ func (m *manager) initServices() error {
 	)
 	infra.Debug = (m.log.Level() == zapcore.DebugLevel)
 
+	// Without a monitor interval the supervisor never re-probes: every stat
+	// keeps whatever Init left it, so /readyz would answer "ready" against a
+	// database that died after startup. The restart policy stays at its zero
+	// value (no in-process restarts), so a liveness failure escalates to
+	// whatever supervises the process rather than being retried here.
+	monitorInterval := m.config.GetDuration("supervisor.monitor.interval")
+	if monitorInterval <= 0 {
+		monitorInterval = defaultMonitorInterval
+	}
 	m.services = supervisor.New(m.config,
 		supervisor.WithLogger(m.log),
+		supervisor.WithMonitorInterval(monitorInterval),
 	)
 
 	// The migrations directory is the single source of truth for the schema
@@ -152,11 +169,16 @@ func (m *manager) initServices() error {
 				m.config.GetString(fmt.Sprintf("api.%s.prefix", name)),
 			),
 		}
-		if m.config.IsSet(fmt.Sprintf("api.%s.throttle", name)) {
-			opts = append(opts, server.WithThrottle(
-				m.config.GetFloat64(fmt.Sprintf("api.%s.throttle.rps", name)),
-				m.config.GetInt(fmt.Sprintf("api.%s.throttle.burst_size", name)),
-			))
+		// Per-server middleware configs: a plain mapping of middleware name to
+		// its default config, unordered - order only matters in router.yaml,
+		// where attachment lives. Each block reaches its middleware wherever
+		// nothing more specific is configured.
+		if mws := m.config.GetStringMap(fmt.Sprintf("api.%s.middlewares", name)); len(mws) > 0 {
+			raw, err := yaml.Marshal(mws)
+			if err != nil {
+				return errors.Wrap(err)
+			}
+			opts = append(opts, server.WithMiddlewareConfigs(raw))
 		}
 		if err := m.api.Add(name, opts...); err != nil {
 			return errors.Wrap(err)

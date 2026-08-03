@@ -1,5 +1,7 @@
 server: http
 prefix: /_sessions
+middlewares:
+  - throttle
 handlers:
   - method: WS
     path: /ws

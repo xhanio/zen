@@ -3,12 +3,11 @@ package repository
 import (
 	"context"
 	"database/sql"
-	"path"
 
 	"github.com/xhanio/framingo/pkg/types/common"
 	"github.com/xhanio/framingo/pkg/types/model"
 	"github.com/xhanio/framingo/pkg/utils/log"
-	"github.com/xhanio/framingo/pkg/utils/reflectutil"
+	"github.com/xhanio/framingo/pkg/utils/nameutil"
 )
 
 type manager struct {
@@ -18,10 +17,11 @@ type manager struct {
 }
 
 func New(db model.Database, opts ...Option) Repository {
-	return newRepo(db, opts...)
+	return newManager(db, opts...)
 }
 
-func newRepo(db model.Database, opts ...Option) *manager {
+// newManager returns the concrete manager, the form package tests construct.
+func newManager(db model.Database, opts ...Option) *manager {
 	m := &manager{db: db}
 	for _, opt := range opts {
 		opt(m)
@@ -29,13 +29,11 @@ func newRepo(db model.Database, opts ...Option) *manager {
 	if m.log == nil {
 		m.log = log.Default
 	}
+	m.name = nameutil.Name(m)
 	return m
 }
 
 func (m *manager) Name() string {
-	if m.name == "" {
-		m.name = path.Join(reflectutil.Locate(m))
-	}
 	return m.name
 }
 

@@ -157,11 +157,11 @@ type fakeDB struct {
 	g *gorm.DB
 }
 
-func (f *fakeDB) Name() string                       { return "test-db" }
-func (f *fakeDB) Dependencies() []common.Service     { return nil }
-func (f *fakeDB) Init(ctx context.Context) error     { return nil }
-func (f *fakeDB) Info(w io.Writer, debug bool)       {}
-func (f *fakeDB) ORM() *gorm.DB                      { return f.g }
+func (f *fakeDB) Name() string                   { return "test-db" }
+func (f *fakeDB) Dependencies() []common.Service { return nil }
+func (f *fakeDB) Init(ctx context.Context) error { return nil }
+func (f *fakeDB) Info(w io.Writer, debug bool)   {}
+func (f *fakeDB) ORM() *gorm.DB                  { return f.g }
 func (f *fakeDB) DB() *sql.DB {
 	d, _ := f.g.DB()
 	return d
@@ -178,6 +178,7 @@ func (f *fakeDB) FromContext(ctx context.Context) *gorm.DB {
 // (which uses common.ContextKeyTX) at minimal scope so tests don't depend
 // on framingo's private bridge.
 type txKey struct{}
+
 func (f *fakeDB) FromContextTimeout(ctx context.Context, d time.Duration) (*gorm.DB, context.CancelFunc) {
 	c, cancel := context.WithTimeout(ctx, d)
 	return f.g.WithContext(c), cancel

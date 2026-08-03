@@ -20,8 +20,8 @@ import (
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 
 	backend "github.com/xhanio/zen/pkg/components/server/zen-backend"
-	mcp "github.com/xhanio/zen/pkg/components/server/zen-mcp"
 	channel "github.com/xhanio/zen/pkg/components/server/zen-channel"
+	mcp "github.com/xhanio/zen/pkg/components/server/zen-mcp"
 )
 
 func realBackendMigrationsDir(t *testing.T) string {

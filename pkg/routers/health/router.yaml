@@ -1,9 +1,13 @@
 server: http
 prefix: /
 handlers:
+  # No middlewares on purpose, and load-bearing here because the probes share
+  # the public server: every other router attaches throttle at group level, so
+  # omitting it is what keeps a prober from being rate-limited into a 429 and
+  # read as a failing probe.
   - method: GET
     path: /healthz
-    func: HealthZ
+    func: Healthz
   - method: GET
     path: /readyz
-    func: ReadyZ
+    func: Readyz

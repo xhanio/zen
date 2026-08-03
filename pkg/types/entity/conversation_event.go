@@ -6,11 +6,11 @@ import "time"
 // message is appended to a conversation. Kind on the bus envelope is
 // always ConversationEventKind; Role distinguishes user/assistant/system.
 type ConversationEvent struct {
-	ConversationID string    `json:"conversation_id"`
-	MessageID      string    `json:"message_id"`
-	Role           string    `json:"role"`
-	Content        string    `json:"content"`
-	SelectionText  *string   `json:"selection_text,omitempty"`
+	ConversationID string  `json:"conversation_id"`
+	MessageID      string  `json:"message_id"`
+	Role           string  `json:"role"`
+	Content        string  `json:"content"`
+	SelectionText  *string `json:"selection_text,omitempty"`
 
 	// TargetSessionID addresses this event to exactly one Claude Code session.
 	// It rides on the wire and is never persisted (unlike SessionID below): the

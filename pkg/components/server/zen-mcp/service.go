@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"go.uber.org/zap/zapcore"
+	"gopkg.in/yaml.v3"
 
 	"github.com/xhanio/errors"
 	"github.com/xhanio/framingo/pkg/services/api/server"
@@ -49,6 +50,14 @@ func (m *manager) initServices() error {
 				m.config.GetUint(fmt.Sprintf("api.%s.port", name)),
 				m.config.GetString(fmt.Sprintf("api.%s.prefix", name)),
 			),
+		}
+		// Per-server middleware configs: see zen-backend for the shape.
+		if mws := m.config.GetStringMap(fmt.Sprintf("api.%s.middlewares", name)); len(mws) > 0 {
+			raw, err := yaml.Marshal(mws)
+			if err != nil {
+				return errors.Wrap(err)
+			}
+			opts = append(opts, server.WithMiddlewareConfigs(raw))
 		}
 		if err := m.api.Add(name, opts...); err != nil {
 			return errors.Wrap(err)

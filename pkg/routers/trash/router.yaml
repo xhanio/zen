@@ -1,5 +1,7 @@
 server: http
 prefix: /trash
+middlewares:
+  - throttle
 handlers:
   - method: GET
     path: /

@@ -4,6 +4,7 @@ import (
 	"github.com/xhanio/errors"
 	"github.com/xhanio/framingo/pkg/types/api"
 
+	"github.com/xhanio/zen/pkg/middlewares/throttle"
 	cardRouter "github.com/xhanio/zen/pkg/routers/card"
 	conversationRouter "github.com/xhanio/zen/pkg/routers/conversation"
 	groupRouter "github.com/xhanio/zen/pkg/routers/group"
@@ -17,9 +18,16 @@ import (
 )
 
 func (m *manager) initAPI() error {
-	middlewares := []api.Middleware{}
+	middlewares := []api.Middleware{
+		// Routers opt in through router.yaml, where a handler may also carry
+		// its own limit under the middleware's name; the server's middleware
+		// defaults (api.<name>.middlewares in config.yaml) cover the rest.
+		// With no limit anywhere it passes everything, so attaching it is
+		// safe with no config at all.
+		throttle.New(),
+	}
 	routers := []api.Router{
-		healthRouter.New(m.db, m.log),
+		healthRouter.New(m.services, m.log),
 		groupRouter.New(m.group, m.log),
 		tagRouter.New(m.tag, m.log),
 		cardRouter.New(m.card, m.log),

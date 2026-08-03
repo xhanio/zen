@@ -1,5 +1,7 @@
 server: http
 prefix: /conversations
+middlewares:
+  - throttle
 handlers:
   - method: POST
     path: /

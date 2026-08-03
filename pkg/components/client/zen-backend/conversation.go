@@ -88,4 +88,3 @@ func (cc *conversationClient) GetMessages(ctx context.Context, conversationID st
 	}
 	return &out, nil
 }
-

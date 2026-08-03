@@ -1,5 +1,7 @@
 server: http
 prefix: /search
+middlewares:
+  - throttle
 handlers:
   - method: GET
     path: /
