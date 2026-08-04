@@ -178,8 +178,8 @@ github.com/xdg-go/stringprep v1.0.4 h1:XLI/Ng3O1Atzq0oBs3TWm+5ZVgkq2aqdlvP9JtoZ6
 github.com/xdg-go/stringprep v1.0.4/go.mod h1:mPGuuIYwz7CmR2bT9j4GbQqutWS1zV24gijq1dTyGkM=
 github.com/xhanio/errors v1.1.0 h1:CmJyDfLxu2BXhAWQudzvo3F+3+Hes2CdqhaIoyCxyck=
 github.com/xhanio/errors v1.1.0/go.mod h1:OZkI2qrOk7T3VuOWjtOBXLJSrGpln0GBmDEhvnN9hgw=
-github.com/xhanio/framingo v0.6.8 h1:rv4XlsfSd8XAYavgzGEZTLMxTem4edn59gZ7VoG29/w=
-github.com/xhanio/framingo v0.6.8/go.mod h1:PE8+XrQXPpeHnAYH57kyDT5tFbPiarA4DewC5bTnkTk=
+github.com/xhanio/framingo v0.6.9 h1:pLlWIYDNDbSBVExyVgBVdh6WwtUeO0/nYIJ1tUbtgUs=
+github.com/xhanio/framingo v0.6.9/go.mod h1:PE8+XrQXPpeHnAYH57kyDT5tFbPiarA4DewC5bTnkTk=
 github.com/yosida95/uritemplate/v3 v3.0.2 h1:Ed3Oyj9yrmi9087+NczuL5BwkIc4wvTb5zIM+UJPGz4=
 github.com/yosida95/uritemplate/v3 v3.0.2/go.mod h1:ILOh0sOhIJR3+L/8afwt/kE++YT040gmv5BQTMR2HP4=
 github.com/youmark/pkcs8 v0.0.0-20181117223130-1be2e3e5546d h1:splanxYIlg+5LfHAM6xpdFEAYOk8iySO56hMFq6uLyA=

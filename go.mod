@@ -12,7 +12,7 @@ require (
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0
 	github.com/xhanio/errors v1.1.0
-	github.com/xhanio/framingo v0.6.8
+	github.com/xhanio/framingo v0.6.9
 	go.uber.org/zap v1.28.0
 	golang.org/x/net v0.56.0
 	golang.org/x/time v0.15.0

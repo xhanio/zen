@@ -48,18 +48,20 @@ func (m *manager) initServices() error {
 	)
 	infra.Debug = (m.log.Level() == zapcore.DebugLevel)
 
-	// Without a monitor interval the supervisor never re-probes: every stat
+	// Without a sweep interval the supervisor never re-probes: every stat
 	// keeps whatever Init left it, so /readyz would answer "ready" against a
-	// database that died after startup. The restart policy stays at its zero
-	// value (no in-process restarts), so a liveness failure escalates to
-	// whatever supervises the process rather than being retried here.
+	// database that died after startup.
 	monitorInterval := m.config.GetDuration("supervisor.monitor.interval")
 	if monitorInterval <= 0 {
 		monitorInterval = defaultMonitorInterval
 	}
 	m.services = supervisor.New(m.config,
 		supervisor.WithLogger(m.log),
-		supervisor.WithMonitorInterval(monitorInterval),
+		// 0 restarts: nothing zen supervises is fixed by restarting it in
+		// process — the database is the one thing that can go unready, and
+		// that is a readiness story, not a restart one. A liveness failure
+		// therefore escalates immediately to whatever supervises the process.
+		supervisor.WithMonitorPolicy(monitorInterval, 0, 0),
 	)
 
 	// The migrations directory is the single source of truth for the schema
